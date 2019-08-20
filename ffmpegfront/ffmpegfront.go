@@ -13,7 +13,6 @@ var MakeTemplate = flag.Bool("make-template", false, "Write a template file")
 
 func main() {
     flag.Parse()
-    fmt.Printf("Found this value for make-template: %t\n", *MakeTemplate)
 
     if *MakeTemplate {
         emptyJson := makeEmptySettings()
@@ -47,6 +46,7 @@ func makeEmptySettings() Settings {
             true,
             "ex-480p, 720p, 1080p, 4k",
              "ex-2000k",
+            false,
         },
         Audio{
             true,
@@ -70,6 +70,7 @@ func makeEmptySettings() Settings {
         Ready{
             false,
             "if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting",
+            "list of files to operate on. * will do all files in the directory.  'donkeyboner*' will match all files that start with 'donkeyboner'. '*.mkv' will operate on all mkv files.",
         },
     }
     return empty
@@ -86,6 +87,7 @@ type Video struct {
     JustCopy   bool  `json:"justCopy"`
     Resolution  string `json:"resolution"`
     VideoBitrate string `json:"videoBitrate"`
+    H2642Pass   bool    `json:"h2642pass"`
 }
 type Audio struct {
     JustCopy   bool  `json:"justCopy"`
@@ -109,4 +111,5 @@ type Time struct {
 type Ready struct {
     Completed bool `json:"completed"`
     Notes string `json:"notes"`
+    Files string `json:"files"`
 }
