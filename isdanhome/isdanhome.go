@@ -1,27 +1,23 @@
-# do something like this https://play.golang.org/p/8e1zNrs4a1C
-
 package main
 import (
     "fmt"
     "os/exec"
     "time"
     "bytes"
+    log "github.com/sirupsen/logrus"
 
 )
 
 func main() {
-//    mac := "40:4e:36:bb:c3:10"
-    danHome := true
-
-
-        if danHome {
-            fmt.Println("dan must be home")
+    mac := "40:4e:36:bb:c3:10"
+    danHome := obsessivelyCheckForDan(mac)
+    if danHome {
+            fmt.Println("Dan is totally home")
         } else {
-            fmt.Println("dan is not home")
+            fmt.Println("Dan is probably not home")
         }
-        fmt.Println("I sleep")
-        time.Sleep(10*time.Second)
 }
+
 
 func pingPhone(mac string) (danStatus bool) {
     cmd := exec.Command("/usr/bin/l2ping", "-c1", "-d0", mac)
@@ -30,7 +26,7 @@ func pingPhone(mac string) (danStatus bool) {
     err := cmd.Run()
 
     if err != nil {
-        fmt.Println(errbuf.String())
+        fmt.Print(errbuf.String())
         danStatus=false
         return
     }
@@ -39,3 +35,26 @@ func pingPhone(mac string) (danStatus bool) {
 
 }
 
+func obsessivelyCheckForDan( mac string ) (danStatus bool) {
+    for retries:=1; retries<5; retries++ {
+        danStatus = pingPhone(mac)
+        time.Sleep(9*time.Second)
+        if danStatus {
+            break
+        }
+    }
+    return
+
+}
+
+func logStatus(danStatus bool) {
+    var mesg,time string
+    if danStatus{
+        mesg = "Dan came home!"
+    } else {
+        mesg = "Dan went away"
+    }
+    time = fmt.Println(time.Now().Format(time.RFC3339))
+
+
+}
