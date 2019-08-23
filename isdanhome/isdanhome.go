@@ -1,32 +1,63 @@
 package main
 import (
+    "bufio"
     "fmt"
+    "encoding/json"
+    "os"
     "os/exec"
+    "strconv"
     "time"
-    "bytes"
     log "github.com/sirupsen/logrus"
 
 )
 
 func main() {
+    logFile := "/var/log/status"
     mac := "40:4e:36:bb:c3:10"
+    oldStatus := getPreviousStatus(logFile)
     danHome := obsessivelyCheckForDan(mac)
+    if danHome != oldStatus {
+        _ = logStatus(danHome, logFile)
+    }
+
     if danHome {
-            fmt.Println("Dan is totally home")
-        } else {
-            fmt.Println("Dan is probably not home")
-        }
+        fmt.Println("dan is home")
+    }
 }
 
+func getPreviousStatus(logFile string) (oldStatus bool) {
+    lastLog := getLastLogLine(logFile)
+    lastLogJson := LogJson{}
+    json.Unmarshal([]byte(lastLog), &lastLogJson)
+
+    oldStatus,_ = strconv.ParseBool(lastLogJson.Status)
+
+    return
+
+}
+
+func getLastLogLine(f string) (s string) {
+    s = ""
+    file, err := os.Open(f)
+    if err != nil {
+        return
+    }
+    defer file.Close()
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+    fmt.Printf("found line: %s\n", scanner.Text())
+        if scanner.Text() != "" {
+            s = scanner.Text()
+        }
+    }
+    return
+}
 
 func pingPhone(mac string) (danStatus bool) {
     cmd := exec.Command("/usr/bin/l2ping", "-c1", "-d0", mac)
-    var errbuf bytes.Buffer
-    cmd.Stderr = &errbuf
     err := cmd.Run()
 
     if err != nil {
-        fmt.Print(errbuf.String())
         danStatus=false
         return
     }
@@ -38,23 +69,41 @@ func pingPhone(mac string) (danStatus bool) {
 func obsessivelyCheckForDan( mac string ) (danStatus bool) {
     for retries:=1; retries<5; retries++ {
         danStatus = pingPhone(mac)
-        time.Sleep(9*time.Second)
         if danStatus {
             break
         }
+        time.Sleep(9*time.Second)
     }
     return
 
 }
 
-func logStatus(danStatus bool) {
-    var mesg,time string
-    if danStatus{
-        mesg = "Dan came home!"
-    } else {
-        mesg = "Dan went away"
+func logStatus(danStatus bool, logFile string) bool {
+    var file, err = os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY,0644)
+    if err != nil {
+        fmt.Println("Could not open logfile:" + err.Error())
+        return false
     }
-    time = fmt.Println(time.Now().Format(time.RFC3339))
+    log.SetFormatter(&log.JSONFormatter{})
+    log.SetOutput(file)
 
+    var status string
+    if danStatus {
+        status = "true"
+    } else {
+        status = "false"
+    }
+    logData := log.Fields{
+        "status": status,
+    }
+    log.WithFields(logData).Info()
+    return true
 
+}
+
+type LogJson struct {
+	Level  string `json:"level"`
+	Msg    string `json:"msg"`
+	Status string `json:"status"`
+	Time   string `json:"time"`
 }
