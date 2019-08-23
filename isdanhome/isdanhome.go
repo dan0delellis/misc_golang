@@ -1,7 +1,6 @@
 package main
 import (
     "bufio"
-    "fmt"
     "encoding/json"
     "os"
     "os/exec"
@@ -20,9 +19,8 @@ func main() {
         _ = logStatus(danHome, logFile)
     }
 
-    if danHome {
-        fmt.Println("dan is home")
-    }
+//      if danHome {
+//              do stuff (send shutdown signal, log)
 }
 
 func getPreviousStatus(logFile string) (oldStatus bool) {
@@ -45,7 +43,6 @@ func getLastLogLine(f string) (s string) {
     defer file.Close()
     scanner := bufio.NewScanner(file)
     for scanner.Scan() {
-    fmt.Printf("found line: %s\n", scanner.Text())
         if scanner.Text() != "" {
             s = scanner.Text()
         }
@@ -81,7 +78,7 @@ func obsessivelyCheckForDan( mac string ) (danStatus bool) {
 func logStatus(danStatus bool, logFile string) bool {
     var file, err = os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY,0644)
     if err != nil {
-        fmt.Println("Could not open logfile:" + err.Error())
+        //fmt.Println("Could not open logfile:" + err.Error())
         return false
     }
     log.SetFormatter(&log.JSONFormatter{})
