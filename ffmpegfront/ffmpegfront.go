@@ -6,6 +6,7 @@ import (
     "fmt"
     "io/ioutil"
     "strings"
+    "os"
     //"reflect"
 )
 
@@ -13,15 +14,37 @@ var MakeTemplate = flag.Bool("make-template", false, "Write a template file")
 
 func main() {
     flag.Parse()
+    settingsFile := "settings.json"
 
     if *MakeTemplate {
         emptyJson := makeEmptySettings()
         writeJson(emptyJson, "template.json")
+        os.Exit(0)
     } else {
-        fmt.Println("there's nothing for me to do")
+        settings := parseSettingsJson(settingsFile)
+        fmt.Println(settings)
     }
 
 
+
+
+}
+
+func parseSettingsJson(file string) (settings Settings) {
+    jsonFile, err := os.Open(file)
+    if err != nil {
+        fmt.Printf("unable to open json file %s: %v\n", file, err)
+        os.Exit(1)
+    }
+
+    jsonBytes, err := ioutil.ReadAll(jsonFile)
+    if err != nil {
+        fmt.Printf("unable to read json file %s: %v\n", file, err)
+        os.Exit(1)
+    }
+
+    json.Unmarshal(jsonBytes, &settings)
+    return
 }
 
 func writeJson(jsonData Settings, fileName string) {
@@ -87,7 +110,6 @@ type Video struct {
     JustCopy   bool  `json:"justCopy"`
     Resolution  string `json:"resolution"`
     VideoBitrate string `json:"videoBitrate"`
-    H2642Pass   bool    `json:"h2642pass"`
 }
 type Audio struct {
     JustCopy   bool  `json:"justCopy"`
@@ -111,5 +133,4 @@ type Time struct {
 type Ready struct {
     Completed bool `json:"completed"`
     Notes string `json:"notes"`
-    Files string `json:"files"`
 }
