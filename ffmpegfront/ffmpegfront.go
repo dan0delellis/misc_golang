@@ -43,7 +43,10 @@ func parseSettingsJson(file string) (settings Settings) {
         os.Exit(1)
     }
 
-    json.Unmarshal(jsonBytes, &settings)
+    err = json.Unmarshal(jsonBytes, &settings)
+    if err != nil {
+        fmt.Printf("Unable to parse json file: %v\n", err)
+    }
     return
 }
 
@@ -69,7 +72,6 @@ func makeEmptySettings() Settings {
             true,
             "ex-480p, 720p, 1080p, 4k",
              "ex-2000k",
-            false,
         },
         Audio{
             true,
@@ -133,4 +135,39 @@ type Time struct {
 type Ready struct {
     Completed bool `json:"completed"`
     Notes string `json:"notes"`
+    Files string `json:"files"`
 }
+
+/*example json:
+{
+  "video": {
+    "justCopy": false,
+    "resolution": "720p",
+    "videoBitrate": "2000k"
+  },
+  "audio": {
+    "justCopy": false,
+    "audioCodec": "vorbis",
+    "audioChannels": "2",
+    "audioFilter": "loudnorm",
+    "auidioBitrate": "200k",
+    "loudnorm2Pass": true
+  },
+  "subtitles": {
+    "burnInSubtitles": false,
+    "subtitleFile": "ooga.srt",
+    "fontSize": 12,
+    "fontColorHex": "0xffffff",
+    "fontColorWord": "white"
+  },
+  "time": {
+    "timeSkipIntro": 15,
+    "totalTime": 3600
+  },
+  "ready": {
+    "completed": true,
+    "notes": "",
+    "files": "*"
+  }
+}
+*/

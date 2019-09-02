@@ -1,0 +1,31 @@
+{
+  "video": {
+    "justCopy": false,
+    "resolution": "720p",
+    "videoBitrate": "2000k"
+  },
+  "audio": {
+    "justCopy": false,
+    "audioCodec": "vorbis",
+    "audioChannels": "2",
+    "audioFilter": "loudnorm",
+    "auidioBitrate": "200k",
+    "loudnorm2Pass": true
+  },
+  "subtitles": {
+    "burnInSubtitles": false,
+    "subtitleFile": "ooga.srt",
+    "fontSize": 12,
+    "fontColorHex": "0xffffff",
+    "fontColorWord": "white"
+  },
+  "time": {
+    "timeSkipIntro": 15,
+    "totalTime": 3600
+  },
+  "ready": {
+    "completed": true,
+    "notes": "none",
+    "files": "*"
+  }
+}
