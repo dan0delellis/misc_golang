@@ -12,6 +12,23 @@ import (
 
 var MakeTemplate = flag.Bool("make-template", false, "Write a template file")
 
+func resolutionMap(res string) (fullRes string) {
+    resolutions := map[string]string {
+        "480p" : "640:480",
+        "720p" : "1280:720",
+        "1080p" : "1920:1080",
+        "4k"    : "3840:2160",
+    }
+
+    if resolutions[res] != "" {
+        fullRes = resolutions[res]
+        return
+    }
+    fmt.Printf("%s is not a preprogramed resolution\n", res)
+    os.Exit(1)
+    return ""
+}
+
 func main() {
     flag.Parse()
     settingsFile := "settings.json"
@@ -24,8 +41,6 @@ func main() {
         settings := parseSettingsJson(settingsFile)
         fmt.Println(settings)
     }
-
-
 
 
 }
@@ -95,7 +110,6 @@ func makeEmptySettings() Settings {
         Ready{
             false,
             "if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting",
-            "list of files to operate on. * will do all files in the directory.  'donkeyboner*' will match all files that start with 'donkeyboner'. '*.mkv' will operate on all mkv files.",
         },
     }
     return empty
@@ -135,10 +149,23 @@ type Time struct {
 type Ready struct {
     Completed bool `json:"completed"`
     Notes string `json:"notes"`
-    Files string `json:"files"`
+}
+
+type loudnormValues struct {
+	InputI            string `json:"input_i"`
+	InputTp           string `json:"input_tp"`
+	InputLra          string `json:"input_lra"`
+	InputThresh       string `json:"input_thresh"`
+	OutputI           string `json:"output_i"`
+	OutputTp          string `json:"output_tp"`
+	OutputLra         string `json:"output_lra"`
+	OutputThresh      string `json:"output_thresh"`
+	NormalizationType string `json:"normalization_type"`
+	TargetOffset      string `json:"target_offset"`
 }
 
 /*example json:
+settings:
 {
   "video": {
     "justCopy": false,
@@ -167,7 +194,26 @@ type Ready struct {
   "ready": {
     "completed": true,
     "notes": "",
-    "files": "*"
   }
 }
+
+loudnorm sample output:
+{
+    "input_i" : "-18.33",
+    "input_tp" : "-7.93",
+    "input_lra" : "20.70",
+    "input_thresh" : "-30.40",
+    "output_i" : "-23.95",
+    "output_tp" : "-7.03",
+    "output_lra" : "7.60",
+    "output_thresh" : "-34.44",
+    "normalization_type" : "dynamic",
+    "target_offset" : "-0.05"
+}
+
+
+parse multiple jsons from string data:
+https://play.golang.org/p/6XAdq6N0PAD
 */
+
+
