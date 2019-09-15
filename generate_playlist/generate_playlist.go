@@ -130,7 +130,7 @@ type trackInfo struct {
     Duration    time.Duration
     Bitrate     int
 }
-
+/*
 type Exclusions struct {
     Artist      []string
     Album       []string
@@ -140,4 +140,16 @@ type Exclusions struct {
     minTime     string
     maxTime     string
     minBitrate  int
+}
+*/
+type Exclusions struct {
+	Root       string   `json:"root"`
+	ExArtists  []string `json:"ex_Artists"`
+	ExAlbums   []string `json:"ex_Albums"`
+	ExTitles   []string `json:"ex_Titles"`
+	ExComments []string `json:"ex_Comments"`
+	ExGenres   []string `json:"ex_Genre"`
+	MinTime    string   `json:"min_time"`
+	MaxTime    string   `json:"max_time"`
+	MinBitRate int      `json:"min_bit_rate"`
 }
