@@ -20,7 +20,7 @@ func main() {
     exclusions.maxTime = "10m"
 
 
-    fileList := getFiles(musicRoot)
+    fileList := getFiles(musicRoot, exclusions)
 
     var filesToKeep []string
 
@@ -30,6 +30,8 @@ func main() {
             filesToKeep = append(filesToKeep,track.FilePath)
         }
     }
+
+
 
     for _,keep := range filesToKeep {
         fmt.Println(keep)
@@ -76,17 +78,19 @@ func keepTrack(file trackInfo, drop Exclusions) bool {
     return true
 }
 
-func getFiles(root string) (fileList []string) {
+func getFiles(root string, drop Exclusions) (fileList []string) {
     err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
         if err != nil || info.IsDir() {
             return err
         }
+//        fileInfo := scanFile(path)
+//        if keepTrack(fileInfo, drop) {
         fileList = append(fileList, path)
+//        }
         return nil
 
     })
     if err != nil {
-        fmt.Println(err)
         os.Exit(1)
     }
 
@@ -95,16 +99,13 @@ func getFiles(root string) (fileList []string) {
 
 }
 
-func scanFile(filename string) (track trackInfo) {
-    fmt.Printf("reading: %s\n", filename)
+func scanFile(filename string) (songData trackInfo) {
     songFile, err := taglib.Read(filename)
 
     if err != nil {
-        fmt.Println(err)
         return
     }
 
-    var songData trackInfo
     songData.FilePath = filename
     songData.Artist = songFile.Artist()
     songData.Album = songFile.Album()
@@ -113,6 +114,8 @@ func scanFile(filename string) (track trackInfo) {
     songData.Comment = songFile.Comment()
     songData.Genre = songFile.Genre()
     songData.Bitrate = songFile.Bitrate()
+
+    songFile.Close()
 
     return
 }
