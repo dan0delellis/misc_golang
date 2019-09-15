@@ -6,42 +6,97 @@ import (
     "time"
     "os"
     "path/filepath"
-
+    "strings"
 )
 
 func main() {
-    musicRoot := "/mnt/music"
+    musicRoot := "/mnt/music/"
+
+    var exclusions Exclusions
+
+    exclusions.Artist = []string{"Armik", "Johannes Linstead", "Elvis", "Foreigner"}
+    exclusions.Genre = []string{"Guitar", "Classical"}
+    exclusions.minTime = "2m"
+    exclusions.maxTime = "10m"
 
 
-    err := filepath.Walk(musicRoot,
-        func(path string, info os.FileInfo, err error) error {
-        if err != nil || info.IsDir() == true { return err }
-        fmt.Println(path)
-        return nil
-    })
-    if err != nil {
-        fmt.Println(err)
+    fileList := getFiles(musicRoot)
+
+    var filesToKeep []string
+
+    for _,file := range fileList {
+        track := scanFile(file)
+        if keepTrack(track, exclusions) {
+            filesToKeep = append(filesToKeep,track.FilePath)
+        }
     }
 
-/*
-    songFile, err := taglib.Read(file)
+    for _,keep := range filesToKeep {
+        fmt.Println(keep)
+    }
+}
 
+func keepTrack(file trackInfo, drop Exclusions) bool {
+    var err error
+    minTime, err := time.ParseDuration(drop.minTime)
+    maxTime, err := time.ParseDuration(drop.maxTime)
+
+    if err != nil {
+        os.Exit(1)
+    }
+
+    for _,artist := range drop.Artist {
+        if strings.Contains(file.Artist, artist) { return false }
+    }
+
+    for _,album := range drop.Album {
+        if strings.Contains(file.Album, album) { return false }
+    }
+
+    for _,title := range drop.Title {
+        if strings.Contains(file.Title, title) { return false }
+    }
+
+    for _,comment := range drop.Comment {
+        if strings.Contains(file.Comment, comment) { return false }
+    }
+
+    for _,genre := range drop.Genre {
+        if strings.Contains(file.Genre, genre) { return false }
+    }
+
+    if file.Duration < minTime || file.Duration > maxTime {
+        return false
+    }
+
+    if file.Bitrate < drop.minBitrate {
+        return false
+    }
+
+    return true
+}
+
+func getFiles(root string) (fileList []string) {
+    err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+        if err != nil || info.IsDir() {
+            return err
+        }
+        fileList = append(fileList, path)
+        return nil
+
+    })
     if err != nil {
         fmt.Println(err)
         os.Exit(1)
     }
 
-    var track trackInfo
+    return fileList
 
-    track.FilePath = file
-    track.Artist = songFile.Artist()
 
-    fmt.Println(track)
-*/
 }
 
-
-func scanFile(filename string) (err error, track trackInfo) {
+func scanFile(filename string) (track trackInfo) {
+    fmt.Printf("reading: %s\n", filename)
     songFile, err := taglib.Read(filename)
 
     if err != nil {
@@ -58,8 +113,6 @@ func scanFile(filename string) (err error, track trackInfo) {
     songData.Comment = songFile.Comment()
     songData.Genre = songFile.Genre()
     songData.Bitrate = songFile.Bitrate()
-    songData.Year = songFile.Year()
-
 
     return
 }
@@ -73,5 +126,15 @@ type trackInfo struct {
     Genre       string
     Duration    time.Duration
     Bitrate     int
-    Year        int
+}
+
+type Exclusions struct {
+    Artist      []string
+    Album       []string
+    Title       []string
+    Comment     []string
+    Genre       []string
+    minTime     string
+    maxTime     string
+    minBitrate  int
 }
