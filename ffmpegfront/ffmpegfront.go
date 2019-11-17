@@ -2,11 +2,13 @@ package main
 
 import (
     "encoding/json"
+    "bytes"
     "flag"
     "fmt"
     "io/ioutil"
     "strings"
     "os"
+    "os/exec"
     //"reflect"
 )
 
@@ -31,16 +33,55 @@ func resolutionMap(res string) (fullRes string) {
 
 func main() {
     flag.Parse()
+    fileList := flag.Args()
+    if len(fileList) > 1 {
+        fmt.Println("this program will only operate on one file at a time.  If you want to do multiple, execute it in a for loop in bash.\n")
+        os.Exit(1)
+    }
+    fileName := fileList[0]
+    fmt.Println(fileName)
     settingsFile := "settings.json"
 
     if *MakeTemplate {
         emptyJson := makeEmptySettings()
         writeJson(emptyJson, "template.json")
         os.Exit(0)
-    } else {
-        settings := parseSettingsJson(settingsFile)
-        fmt.Println(settings)
     }
+
+    settings := parseSettingsJson(settingsFile)
+    fmt.Println(settings)
+    fmt.Println("Should I do loudnorm 2 pass?")
+    if(settings.Audio.Loudnorm2Pass) {
+        lnJson := getLoudnormJson(fileName)
+        fmt.Println(lnJson)
+    }
+
+
+
+}
+
+func getLoudnormJson(file string) (lnJson loudnormValues) {
+    args := []string{"-i", file, "-t", "10", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"} //those values are pretty standard and I feel OK having them hardcoded.
+    cmd := exec.Command("ffmpeg", args...)
+    var errb bytes.Buffer
+    cmd.Stderr = &errb
+    err := cmd.Run()
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+
+    lines := strings.Split(errb.String(),"\n")
+    jsonString := strings.Join(lines[len(lines)-13:len(lines)-1]," ") //The JSON data is the last 12 lines before some text in a bracket.  It would be wise to implement some form of json scanning algorithm, or deleting any text outside brackets
+    jsonByte := []byte(jsonString)
+
+    err = json.Unmarshal(jsonByte,&lnJson)
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+
+    return
 
 
 }
@@ -92,7 +133,7 @@ func makeEmptySettings() Settings {
             true,
             "ex-vorbis, lame, aac, flac",
             "ex- 2, 5.1",
-            "ex- loudnorm, might just make this a boolean 'UseLoudnorm'",
+            "ex- loudnorm, might just make this a boolean 'UseLoudnorm' because what other filter am I likely to use?",
             "ex- 200k",
             false,
         },
