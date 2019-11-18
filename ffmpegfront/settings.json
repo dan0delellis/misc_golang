@@ -19,13 +19,8 @@
     "fontColorHex": "0xffffff",
     "fontColorWord": "white"
   },
-  "time": {
-    "timeSkipIntro": 15,
-    "totalTime": 3600
-  },
   "ready": {
     "completed": true,
-    "notes": "none",
-    "files": "*"
+    "notes": "none"
   }
 }

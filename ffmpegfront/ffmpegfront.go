@@ -13,6 +13,10 @@ import (
 )
 
 var MakeTemplate = flag.Bool("make-template", false, "Write a template file")
+var inFile = flag.String("infile", "", "File to process with ffmpeg")
+var outFile = flag.String("outfile", "", "File to write output to")
+var settingsFile = flag.String("settings", "", "settings json file to read.")
+
 
 func resolutionMap(res string) (fullRes string) {
     resolutions := map[string]string {
@@ -33,14 +37,6 @@ func resolutionMap(res string) (fullRes string) {
 
 func main() {
     flag.Parse()
-    fileList := flag.Args()
-    if len(fileList) > 1 {
-        fmt.Println("this program will only operate on one file at a time.  If you want to do multiple, execute it in a for loop in bash.\n")
-        os.Exit(1)
-    }
-    fileName := fileList[0]
-    fmt.Println(fileName)
-    settingsFile := "settings.json"
 
     if *MakeTemplate {
         emptyJson := makeEmptySettings()
@@ -48,16 +44,68 @@ func main() {
         os.Exit(0)
     }
 
-    settings := parseSettingsJson(settingsFile)
-    fmt.Println(settings)
-    fmt.Println("Should I do loudnorm 2 pass?")
-    if(settings.Audio.Loudnorm2Pass) {
-        lnJson := getLoudnormJson(fileName)
-        fmt.Println(lnJson)
+
+    if ( *inFile == "" ) || ( *outFile == "" ) || ( *settingsFile == "" ) {
+        fmt.Println("Need the following flags to be used:\n\t-infile [file to process]\n\t-outfile [output target]\n\t-settings [settings json to use]\n\nOr, call with the make-template flag for it to spit out a template JSON to fill in")
+        os.Exit(1)
     }
 
+    settings := parseSettingsJson(*settingsFile)
 
+    args := []string{"-i", *inFile}
 
+    if settings.Time.TimeSkipIntro != 0 {
+        args = append(args, []string{"-ss", fmt.Sprintf("%d",settings.Time.TimeSkipIntro)}...)
+    }
+
+    if settings.Time.TotalTime != 0 {
+        args = append(args, []string{"-t", fmt.Sprintf("%d",settings.Time.TotalTime)}...)
+    }
+
+    if(settings.Audio.JustCopy) {
+        args = append(args, []string{"-c:a", "copy"}...)
+    } else {
+        audioArgs := parseAudioSettings(settings.Audio, *inFile)
+        args = append(args, audioArgs...)
+    }
+
+    fmt.Println(args)
+
+}
+
+func parseAudioSettings(a Audio, file string) (args []string) {
+    flags := make(map[string]string)
+
+    if (a.AudioCodec != "") {
+        flags["-c:a"] = a.AudioCodec
+    } else {
+        flags["-c:a"] = "aac"
+    }
+
+    if (a.AudioChannels != "") {
+        flags["-ac"] = a.AudioChannels
+    }
+
+    if (a.AudioBitrate != "") {
+        flags["-b:a"] = a.AudioBitrate
+    } else {
+        flags["-b:a"] = "192k"
+    }
+
+    if (a.AudioFilter == "loudnorm" || a.Loudnorm2Pass) {
+        if (a.Loudnorm2Pass) {
+            lnJson := getLoudnormJson(file)
+            flags["-af"] = fmt.Sprintf("loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=%s:measured_LRA=%s:measured_TP=%s:measured_thresh=%s:offset=%s:linear=true", lnJson.OutputI, lnJson.OutputLra, lnJson.OutputTp, lnJson.OutputThresh, lnJson.TargetOffset)
+        } else {
+            flags["-af"] = "loudnorm"
+        }
+    }
+
+    for key, val := range(flags) {
+        args = append(args, []string{key,val}...)
+    }
+
+    return
 }
 
 func getLoudnormJson(file string) (lnJson loudnormValues) {
