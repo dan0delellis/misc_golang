@@ -1,26 +1,28 @@
 {
   "video": {
     "justCopy": false,
-    "resolution": "720p",
+    "resolution": "1080p",
     "videoBitrate": "2000k"
   },
   "audio": {
     "justCopy": false,
-    "audioCodec": "libvorbis",
+    "audioCodec": "aac",
     "audioChannels": "2",
     "audioFilter": "loudnorm",
     "auidioBitrate": "200k",
     "loudnorm2Pass": true
   },
   "subtitles": {
-    "burnInSubtitles": false,
-    "subtitleFile": "ooga.srt",
-    "fontSize": 12,
-    "fontColorHex": "0xffffff",
-    "fontColorWord": "white"
+    "burnInSubtitles": true,
+    "subtitleFile": "subs.ass",
+    "subtitleStyle": "FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&"
+  },
+  "time": {
+    "timeSkipIntro": 180,
+    "totalTime": 60
   },
   "ready": {
-    "completed": true,
-    "notes": "none"
+    "completed": false,
+    "notes": "if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting"
   }
 }

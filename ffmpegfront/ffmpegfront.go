@@ -78,15 +78,9 @@ func main() {
     if(settings.Video.JustCopy) {
         args = append(args, []string{"-c:v", "copy"}...)
     } else {
-        videoArgs := parseVideoSettings(settings.Video)
+        videoArgs := parseVideoSettings(settings.Video, settings.Subtitles, *inFile)
         args = append(args, videoArgs...)
     }
-
-    if(settings.Subtitles.BurnInSubtitles) {
-        subsArgs := parseSubsOptions(settings.Subtitles, *inFile)
-        args = append(args, subsArgs...)
-    }
-
 
 //This needs to happen last:
     args = append(args, *outFile)
@@ -94,82 +88,88 @@ func main() {
 
 }
 
-func parseSubsOptions(s Subtitles, f string) (args []string) {
+func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
 //subtitles options look like this: `-vf "subtitles=subs.srt:force_style='FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&'"`, so this string needs to get built :/
-
-    args = append(args, "-vf")
-
-    subsString := `"subtitles=`
-
-    var subFile string
-
-    if s.SubtitleFile == "" {
-        subFile = f
-    } else {
-        subFile = s.SubtitleFile
-    }
-    subsString = fmt.Sprintf("%s%s", subsString, subFile)
-
-    if s.SubtitleStyle != "" {
-        subsString = fmt.Sprintf("%s:force_style='%s'", subsString, s.SubtitleStyle)
+//also subtitle and scaling need to be part of the same filter so thats just great
+    if !v.SoftwareEncode {
+        args = append(args, []string{"-c:v", "h264_omx"}...)
     }
 
-    subsString = fmt.Sprintf(`%s"`, subsString)
-
-    args = append(args, subsString)
-
-    return
-
-}
-
-func parseVideoSettings(v Video) (args []string) {
     if v.VideoBitrate != "" {
         args = append(args, []string{"-b:v", v.VideoBitrate}...)
     }
 
-    if v.Resolution != "" {
-        regex := regexp.MustCompile(`^[0-9]*:[0-9]*$`)
-        if regex.MatchString(v.Resolution) {
-            args = append(args, []string{"-vf", fmt.Sprintf("scale=%s", v.Resolution)}...)
-        } else {
-            args = append(args, []string{"-vf", fmt.Sprintf("scale=%s", resolutionMap(v.Resolution))}...)
+    if v.Resolution != "" || s.BurnInSubtitles {
+        filter := `"`
+        if v.Resolution != "" {
+        var res string
+            regex := regexp.MustCompile(`^[0-9]*:[0-9]*$`)
+            if regex.MatchString(v.Resolution) {
+                res = v.Resolution
+            } else {
+                res = resolutionMap(v.Resolution)
+            }
+
+            filter = fmt.Sprintf("%sscale=%s", filter, res)
         }
+
+        if s.BurnInSubtitles {
+            var subFile string
+            filter = fmt.Sprintf("%s, 'subtitles=", filter)
+
+            if s.SubtitleFile == "" {
+                subFile = f
+            } else {
+                subFile = s.SubtitleFile
+            }
+            filter = fmt.Sprintf("%s%s", filter, subFile)
+
+            if s.SubtitleStyle != "" {
+                filter = fmt.Sprintf("%s:force_style=%s", filter, s.SubtitleStyle)
+            }
+
+            filter = fmt.Sprintf(`%s'`, filter)
+        }
+        filter = fmt.Sprintf(`%s"`, filter)
+        args = append(args, []string{"-vf", filter}...)
     }
 
     return
 }
 
 func parseAudioSettings(a Audio, file string) (args []string) {
-    flags := make(map[string]string)
+    var codec, bitrate, filter string
 
     if (a.AudioCodec != "") {
-        flags["-c:a"] = a.AudioCodec
+        codec = a.AudioCodec
     } else {
-        flags["-c:a"] = "aac"
+        codec = "aac"
     }
 
+    args = append(args, []string{"-c:a", codec}...)
+
     if (a.AudioChannels != "") {
-        flags["-ac"] = a.AudioChannels
+        args = append(args,[]string{"-ac", a.AudioChannels}...)
     }
 
     if (a.AudioBitrate != "") {
-        flags["-b:a"] = a.AudioBitrate
+        bitrate = a.AudioBitrate
     } else {
-        flags["-b:a"] = "192k"
+        bitrate = "192k"
     }
+
+    args = append(args, []string{"-b:a", bitrate}...)
 
     if (a.AudioFilter == "loudnorm" || a.Loudnorm2Pass) {
         if (a.Loudnorm2Pass) {
             lnJson := getLoudnormJson(file)
-            flags["-af"] = fmt.Sprintf("loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=%s:measured_LRA=%s:measured_TP=%s:measured_thresh=%s:offset=%s:linear=true", lnJson.OutputI, lnJson.OutputLra, lnJson.OutputTp, lnJson.OutputThresh, lnJson.TargetOffset)
+            filter = fmt.Sprintf("loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=%s:measured_LRA=%s:measured_TP=%s:measured_thresh=%s:offset=%s:linear=true", lnJson.OutputI, lnJson.OutputLra, lnJson.OutputTp, lnJson.OutputThresh, lnJson.TargetOffset)
         } else {
-            flags["-af"] = "loudnorm"
+            filter = "loudnorm"
         }
     }
 
-    for key, val := range(flags) {
-        args = append(args, []string{key,val}...)
-    }
+    args = append(args, []string{"-filter:a", filter}...)
 
     return
 }
@@ -240,6 +240,7 @@ func makeEmptySettings() Settings {
     empty := Settings{
         Video{
             true,
+            false,
             "ex-480p, 720p, 1080p, 4k",
              "ex-2000k",
         },
@@ -277,6 +278,7 @@ type Settings struct {
     Ready   Ready   `json:"ready"`
 }
 type Video struct {
+    SoftwareEncode bool `json:"softwareEncode"`
     JustCopy   bool  `json:"justCopy"`
     Resolution  string `json:"resolution"`
     VideoBitrate string `json:"videoBitrate"`
