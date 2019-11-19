@@ -6,7 +6,7 @@
   },
   "audio": {
     "justCopy": false,
-    "audioCodec": "vorbis",
+    "audioCodec": "libvorbis",
     "audioChannels": "2",
     "audioFilter": "loudnorm",
     "auidioBitrate": "200k",

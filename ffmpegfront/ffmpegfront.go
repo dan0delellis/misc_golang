@@ -6,6 +6,7 @@ import (
     "flag"
     "fmt"
     "io/ioutil"
+    "regexp"
     "strings"
     "os"
     "os/exec"
@@ -13,6 +14,7 @@ import (
 )
 
 var MakeTemplate = flag.Bool("make-template", false, "Write a template file")
+var argsOnly = flag.Bool("args-only", false, "Output the arguments instead of executing ffmpeg with them.")
 var inFile = flag.String("infile", "", "File to process with ffmpeg")
 var outFile = flag.String("outfile", "", "File to write output to")
 var settingsFile = flag.String("settings", "", "settings json file to read.")
@@ -54,6 +56,10 @@ func main() {
 
     args := []string{"-i", *inFile}
 
+    if !settings.Ready.NoOverwrite {
+        args = append(args, "-y")
+    }
+
     if settings.Time.TimeSkipIntro != 0 {
         args = append(args, []string{"-ss", fmt.Sprintf("%d",settings.Time.TimeSkipIntro)}...)
     }
@@ -69,8 +75,68 @@ func main() {
         args = append(args, audioArgs...)
     }
 
+    if(settings.Video.JustCopy) {
+        args = append(args, []string{"-c:v", "copy"}...)
+    } else {
+        videoArgs := parseVideoSettings(settings.Video)
+        args = append(args, videoArgs...)
+    }
+
+    if(settings.Subtitles.BurnInSubtitles) {
+        subsArgs := parseSubsOptions(settings.Subtitles, *inFile)
+        args = append(args, subsArgs...)
+    }
+
+
+//This needs to happen last:
+    args = append(args, *outFile)
     fmt.Println(args)
 
+}
+
+func parseSubsOptions(s Subtitles, f string) (args []string) {
+//subtitles options look like this: `-vf "subtitles=subs.srt:force_style='FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&'"`, so this string needs to get built :/
+
+    args = append(args, "-vf")
+
+    subsString := `"subtitles=`
+
+    var subFile string
+
+    if s.SubtitleFile == "" {
+        subFile = f
+    } else {
+        subFile = s.SubtitleFile
+    }
+    subsString = fmt.Sprintf("%s%s", subsString, subFile)
+
+    if s.SubtitleStyle != "" {
+        subsString = fmt.Sprintf("%s:force_style='%s'", subsString, s.SubtitleStyle)
+    }
+
+    subsString = fmt.Sprintf(`%s"`, subsString)
+
+    args = append(args, subsString)
+
+    return
+
+}
+
+func parseVideoSettings(v Video) (args []string) {
+    if v.VideoBitrate != "" {
+        args = append(args, []string{"-b:v", v.VideoBitrate}...)
+    }
+
+    if v.Resolution != "" {
+        regex := regexp.MustCompile(`^[0-9]*:[0-9]*$`)
+        if regex.MatchString(v.Resolution) {
+            args = append(args, []string{"-vf", fmt.Sprintf("scale=%s", v.Resolution)}...)
+        } else {
+            args = append(args, []string{"-vf", fmt.Sprintf("scale=%s", resolutionMap(v.Resolution))}...)
+        }
+    }
+
+    return
 }
 
 func parseAudioSettings(a Audio, file string) (args []string) {
@@ -187,16 +253,15 @@ func makeEmptySettings() Settings {
         },
         Subtitles{
             false,
-            "ex-file.srt, though I need to figure out how to handle subtitles",
-            12,
-            "ex-ff00ff",
-            "ex-white, black, red, etc",
+            "ex-file.srt, file.mkv.  It will burn the first subtitle track if given a video file. If you want to burn in a different track, then you'll need to extract it from the video file and specify it.  If you need more complicated options, do it manually ¯\\_(ツ)_/¯",
+            "styles look like this: 'FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&' note that the hex is BRG because fuck you that's why",
         },
         Time{
             0,
             0,
         },
         Ready{
+            false,
             false,
             "if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting",
         },
@@ -227,15 +292,14 @@ type Audio struct {
 type Subtitles struct {
     BurnInSubtitles bool  `json:"burnInSubtitles"`
     SubtitleFile  string `json:"subtitleFile"`
-    FontSize    int  `json:"fontSize"`
-    FontColorHex  string `json:"fontColorHex"`
-    FontColorWord  string `json:"fontColorWord"`
+    SubtitleStyle string `json:"subtitleStyle"`
 }
 type Time struct {
     TimeSkipIntro int `json:"timeSkipIntro"`
     TotalTime   int `json:"totalTime"`
 }
 type Ready struct {
+    NoOverwrite bool `json:"noOverwrite"`
     Completed bool `json:"completed"`
     Notes string `json:"notes"`
 }
@@ -252,57 +316,3 @@ type loudnormValues struct {
 	NormalizationType string `json:"normalization_type"`
 	TargetOffset      string `json:"target_offset"`
 }
-
-/*example json:
-settings:
-{
-  "video": {
-    "justCopy": false,
-    "resolution": "720p",
-    "videoBitrate": "2000k"
-  },
-  "audio": {
-    "justCopy": false,
-    "audioCodec": "vorbis",
-    "audioChannels": "2",
-    "audioFilter": "loudnorm",
-    "auidioBitrate": "200k",
-    "loudnorm2Pass": true
-  },
-  "subtitles": {
-    "burnInSubtitles": false,
-    "subtitleFile": "ooga.srt",
-    "fontSize": 12,
-    "fontColorHex": "0xffffff",
-    "fontColorWord": "white"
-  },
-  "time": {
-    "timeSkipIntro": 15,
-    "totalTime": 3600
-  },
-  "ready": {
-    "completed": true,
-    "notes": "",
-  }
-}
-
-loudnorm sample output:
-{
-    "input_i" : "-18.33",
-    "input_tp" : "-7.93",
-    "input_lra" : "20.70",
-    "input_thresh" : "-30.40",
-    "output_i" : "-23.95",
-    "output_tp" : "-7.03",
-    "output_lra" : "7.60",
-    "output_thresh" : "-34.44",
-    "normalization_type" : "dynamic",
-    "target_offset" : "-0.05"
-}
-
-
-parse multiple jsons from string data:
-https://play.golang.org/p/6XAdq6N0PAD
-*/
-
-
