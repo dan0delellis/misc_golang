@@ -115,7 +115,7 @@ func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
 
         if s.BurnInSubtitles {
             var subFile string
-            filter = fmt.Sprintf("%s, 'subtitles=", filter)
+            filter = fmt.Sprintf("%s, subtitles='", filter)
 
             if s.SubtitleFile == "" {
                 subFile = f
