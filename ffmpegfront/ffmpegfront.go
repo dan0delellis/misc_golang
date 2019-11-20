@@ -2,6 +2,7 @@ package main
 
 import (
     "encoding/json"
+    "log"
     "bytes"
     "flag"
     "fmt"
@@ -10,6 +11,7 @@ import (
     "strings"
     "os"
     "os/exec"
+    "time"
     //"reflect"
 )
 
@@ -18,6 +20,7 @@ var argsOnly = flag.Bool("args-only", false, "Output the arguments instead of ex
 var inFile = flag.String("infile", "", "File to process with ffmpeg")
 var outFile = flag.String("outfile", "", "File to write output to")
 var settingsFile = flag.String("settings", "", "settings json file to read.")
+var logFile = flag.String("logfile", fmt.Sprintf("/mnt/tlstc/4tb/download/rencode/logs/%s.log", inFile), "log file to write to")
 
 
 func resolutionMap(res string) (fullRes string) {
@@ -32,7 +35,7 @@ func resolutionMap(res string) (fullRes string) {
         fullRes = resolutions[res]
         return
     }
-    fmt.Printf("%s is not a preprogramed resolution\n", res)
+    log.Printf("%s is not a preprogramed resolution\n", res)
     os.Exit(1)
     return ""
 }
@@ -48,9 +51,16 @@ func main() {
 
 
     if ( *inFile == "" ) || ( *outFile == "" ) || ( *settingsFile == "" ) {
-        fmt.Println("Need the following flags to be used:\n\t-infile [file to process]\n\t-outfile [output target]\n\t-settings [settings json to use]\n\nOr, call with the make-template flag for it to spit out a template JSON to fill in")
+        log.Println("Need the following flags to be used:\n\t-infile [file to process]\n\t-outfile [output target]\n\t-settings [settings json to use]\n\nOr, call with the make-template flag for it to spit out a template JSON to fill in")
         os.Exit(1)
     }
+
+    f, err := os.OpenFile(*logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+	log.Println(err)
+    }
+    defer f.Close()
+    log := log.New(f, "ffmpegfront", log.LstdFlags)
 
     settings := parseSettingsJson(*settingsFile)
 
@@ -82,10 +92,19 @@ func main() {
         args = append(args, videoArgs...)
     }
 
-//This needs to happen last:
+//This needs to happen last before executing the command:
     args = append(args, *outFile)
-    fmt.Println(args)
 
+    log.Printf("executing with these arguments: %v", args)
+    cmd := exec.Command("/usr/bin/ffmpeg", args...)
+    startTime := time.Now()
+    output, err2 := cmd.CombinedOutput()
+    log.Printf("finished with exit status: %v", err)
+    if err != nil {
+        log.Printf("output: %s", string(output))
+    }
+    duration := time.Since(startTime)
+    log.Printf("Time elapsed: %s\n", duration)
 }
 
 func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
@@ -100,7 +119,7 @@ func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
     }
 
     if v.Resolution != "" || s.BurnInSubtitles {
-        filter := `"`
+        filter := ""
         if v.Resolution != "" {
         var res string
             regex := regexp.MustCompile(`^[0-9]*:[0-9]*$`)
@@ -130,7 +149,7 @@ func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
 
             filter = fmt.Sprintf(`%s'`, filter)
         }
-        filter = fmt.Sprintf(`%s"`, filter)
+        filter = fmt.Sprintf(`%s`, filter)
         args = append(args, []string{"-vf", filter}...)
     }
 
@@ -181,7 +200,7 @@ func getLoudnormJson(file string) (lnJson loudnormValues) {
     cmd.Stderr = &errb
     err := cmd.Run()
     if err != nil {
-        fmt.Println(err)
+        log.Println(err)
         os.Exit(1)
     }
 
@@ -191,7 +210,7 @@ func getLoudnormJson(file string) (lnJson loudnormValues) {
 
     err = json.Unmarshal(jsonByte,&lnJson)
     if err != nil {
-        fmt.Println(err)
+        log.Println(err)
         os.Exit(1)
     }
 
@@ -203,19 +222,19 @@ func getLoudnormJson(file string) (lnJson loudnormValues) {
 func parseSettingsJson(file string) (settings Settings) {
     jsonFile, err := os.Open(file)
     if err != nil {
-        fmt.Printf("unable to open json file %s: %v\n", file, err)
+        log.Printf("unable to open json file %s: %v\n", file, err)
         os.Exit(1)
     }
 
     jsonBytes, err := ioutil.ReadAll(jsonFile)
     if err != nil {
-        fmt.Printf("unable to read json file %s: %v\n", file, err)
+        log.Printf("unable to read json file %s: %v\n", file, err)
         os.Exit(1)
     }
 
     err = json.Unmarshal(jsonBytes, &settings)
     if err != nil {
-        fmt.Printf("Unable to parse json file: %v\n", err)
+        log.Printf("Unable to parse json file: %v\n", err)
     }
     return
 }
@@ -226,12 +245,12 @@ func writeJson(jsonData Settings, fileName string) {
     }
     outData, err := json.MarshalIndent(jsonData, "", "  ")
     if err != nil {
-        fmt.Printf("Nope can't marshal that, %s\n", err)
+        log.Printf("Nope can't marshal that, %s\n", err)
         return
     }
     err2 := ioutil.WriteFile(fileName, outData, 0644)
     if err2 != nil {
-        fmt.Printf("Failed to write file %s, %s\n", fileName, err)
+        log.Printf("Failed to write file %s, %s\n", fileName, err)
     }
 
 }
