@@ -100,7 +100,7 @@ func main() {
     startTime := time.Now()
     output, err2 := cmd.CombinedOutput()
     log.Printf("finished with exit status: %v", err)
-    if err != nil {
+    if err2 != nil {
         log.Printf("output: %s", string(output))
     }
     duration := time.Since(startTime)
