@@ -15,7 +15,7 @@ import (
     //"reflect"
 )
 
-var MakeTemplate = flag.Bool("make-template", false, "Write a template file")
+var templateType = flag.String("make-template", "", "Write a template file: template, movie, tv-normal, tv-high are options")
 var argsOnly = flag.Bool("args-only", false, "Output the arguments instead of executing ffmpeg with them.")
 var inFile = flag.String("infile", "", "File to process with ffmpeg")
 var outFile = flag.String("outfile", "", "File to write output to")
@@ -43,9 +43,9 @@ func resolutionMap(res string) (fullRes string) {
 func main() {
     flag.Parse()
 
-    if *MakeTemplate {
-        emptyJson := makeEmptySettings()
-        writeJson(emptyJson, "template.json")
+    if *templateType != "" {
+        templateJson := makeTemplate(*templateType)
+        writeJson(templateJson, "template.json")
         os.Exit(0)
     }
 
@@ -111,7 +111,9 @@ func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
 //subtitles options look like this: `-vf "subtitles=subs.srt:force_style='FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&'"`, so this string needs to get built :/
 //also subtitle and scaling need to be part of the same filter so thats just great
     if !v.SoftwareEncode {
-        args = append(args, []string{"-c:v", "h264_omx"}...)
+        args = append(args, []string{"-c:v", "h264_omx", "-profile:v", "high"}...)
+    } else {
+        args = append(args, []string{"-provile:v", "high10"}...)
     }
 
     if v.VideoBitrate != "" {
@@ -255,38 +257,43 @@ func writeJson(jsonData Settings, fileName string) {
 
 }
 
-func makeEmptySettings() Settings {
-    empty := Settings{
-        Video{
-            true,
-            false,
-            "ex-480p, 720p, 1080p, 4k",
-             "ex-2000k",
-        },
-        Audio{
-            true,
-            "ex-vorbis, lame, aac, flac",
-            "ex- 2, 5.1",
-            "ex- loudnorm, might just make this a boolean 'UseLoudnorm' because what other filter am I likely to use?",
-            "ex- 200k",
-            false,
-        },
-        Subtitles{
-            false,
-            "ex-file.srt, file.mkv.  It will burn the first subtitle track if given a video file. If you want to burn in a different track, then you'll need to extract it from the video file and specify it.  If you need more complicated options, do it manually ¯\\_(ツ)_/¯",
-            "styles look like this: 'FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&' note that the hex is BRG because fuck you that's why",
-        },
-        Time{
-            0,
-            0,
-        },
-        Ready{
-            false,
-            false,
-            "if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting",
-        },
+func makeTemplate(arg string) Settings {
+    jsonMap := make(map[string]Settings)
+
+
+    jsonMap["template"] = Settings{
+        Video{true,false,"ex-480p, 720p, 1080p, 4k","ex-2000k",},
+        Audio{true,"ex-vorbis, lame, aac, flac","ex- 2, 5.1","ex- loudnorm, might just make this a boolean 'UseLoudnorm' because what other filter am I likely to use?","ex- 200k",false,},
+        Subtitles{false,"ex-file.srt, file.mkv.  It will burn the first subtitle track if given a video file. If you want to burn in a different track, then you'll need to extract it from the video file and specify it.  If you need more complicated options, do it manually ¯\\_(ツ)_/¯","styles look like this: 'FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&' note that the hex is BRG because fuck you that's why",},
+        Time{0,0,},
+        Ready{false,false,"if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting",},
     }
-    return empty
+    jsonMap["movie"] = Settings{
+        Video{false,true,"unchanged","unchanged"},
+        Audio{false,"aac","2","loudnorm","192k",true},
+        Subtitles{false,"no file","no style"},
+        Time{0,0},
+        Ready{false,true,"This is for movies. It leaves the video track untouched, while loudnorming the audio track"},
+    }
+    jsonMap["tv-high"] = Settings{
+        Video{true,false,"1080p","3M"},
+        Audio{false, "aac", "192k", "2", "loudnorm", true},
+        Subtitles{false,"no file","no style"},
+        Time{0,0},
+        Ready{false,true,"This is for TV Shows that need high-quality video stream, but were offered with a stupidly high bitrate because someone doesn't know how to use codecs other than xvid or something.  It also does a software encode in 10bit which is like 10x slower than using the broadcom gpu to do the encode"},
+    }
+    jsonMap["tv-normal"] = Settings{
+        Video{false,false,"720p","2M"},
+        Audio{false,"aac","192k", "2","loudnorm", true},
+        Subtitles{false,"no file","no style"},
+        Time{0,0},
+        Ready{false,true,"This is for most TV shows. Maybe it was distributed with a higher bitrate than appropriate, or had an obnoxious intro"},
+    }
+    if _, ok := jsonMap[arg]; ok {
+        return jsonMap[arg]
+    }
+
+    return jsonMap["template"]
 }
 
 type Settings struct {
