@@ -12,7 +12,6 @@ import (
     "os"
     "os/exec"
     "time"
-    //"reflect"
 )
 
 var templateType = flag.String("make-template", "", "Write a template file: template, movie, tv-normal, tv-high are options")
@@ -20,7 +19,7 @@ var argsOnly = flag.Bool("args-only", false, "Output the arguments instead of ex
 var inFile = flag.String("infile", "", "File to process with ffmpeg")
 var outFile = flag.String("outfile", "", "File to write output to")
 var settingsFile = flag.String("settings", "", "settings json file to read.")
-var logFile = flag.String("logfile", fmt.Sprintf("/mnt/tlstc/4tb/download/rencode/logs/%s.log", inFile), "log file to write to")
+var logDir = flag.String("logfile", "/mnt/tlstc/mnt/4tb/download/rencode/logs/", "log file to write to")
 
 
 func resolutionMap(res string) (fullRes string) {
@@ -43,6 +42,8 @@ func resolutionMap(res string) (fullRes string) {
 func main() {
     flag.Parse()
 
+    logFile := fmt.Sprintf("%s%s", *logDir, getLogFile(*inFile))
+
     if *templateType != "" {
         templateJson := makeTemplate(*templateType)
         writeJson(templateJson, "template.json")
@@ -55,7 +56,7 @@ func main() {
         os.Exit(1)
     }
 
-    f, err := os.OpenFile(*logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
     if err != nil {
 	log.Println(err)
     }
@@ -63,20 +64,22 @@ func main() {
     log := log.New(f, "ffmpegfront", log.LstdFlags)
 
     settings := parseSettingsJson(*settingsFile)
+    log.Printf("loaded settings: %s", settings)
 
     args := []string{"-i", *inFile}
 
     if !settings.Ready.NoOverwrite {
         args = append(args, "-y")
     }
+    log.Printf("Parsing time options")
 
     if settings.Time.TimeSkipIntro != 0 {
         args = append(args, []string{"-ss", fmt.Sprintf("%d",settings.Time.TimeSkipIntro)}...)
     }
-
     if settings.Time.TotalTime != 0 {
         args = append(args, []string{"-t", fmt.Sprintf("%d",settings.Time.TotalTime)}...)
     }
+    log.Printf("parsing audio options")
 
     if(settings.Audio.JustCopy) {
         args = append(args, []string{"-c:a", "copy"}...)
@@ -84,6 +87,7 @@ func main() {
         audioArgs := parseAudioSettings(settings.Audio, *inFile)
         args = append(args, audioArgs...)
     }
+    log.Printf("parsing video options", args)
 
     if(settings.Video.JustCopy) {
         args = append(args, []string{"-c:v", "copy"}...)
@@ -91,6 +95,7 @@ func main() {
         videoArgs := parseVideoSettings(settings.Video, settings.Subtitles, *inFile)
         args = append(args, videoArgs...)
     }
+    log.Printf("args so far:%s", args)
 
 //This needs to happen last before executing the command:
     args = append(args, *outFile)
@@ -105,6 +110,13 @@ func main() {
     }
     duration := time.Since(startTime)
     log.Printf("Time elapsed: %s\n", duration)
+}
+
+func getLogFile(f string) (logfile string) {
+    fileParts := strings.Split(f, "/")
+    logfile = fileParts[len(fileParts)-1]
+    fmt.Printf("Gonna use this as the log file name: %s\n", logfile)
+    return
 }
 
 func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
@@ -196,12 +208,14 @@ func parseAudioSettings(a Audio, file string) (args []string) {
 }
 
 func getLoudnormJson(file string) (lnJson loudnormValues) {
-    args := []string{"-i", file, "-t", "10", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"} //those values are pretty standard and I feel OK having them hardcoded.
+    log.Printf("getting loudnorm 2 pass values")
+    args := []string{"-i", file, "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"} //those values are pretty standard and I feel OK having them hardcoded.
     cmd := exec.Command("ffmpeg", args...)
     var errb bytes.Buffer
     cmd.Stderr = &errb
     err := cmd.Run()
     if err != nil {
+        log.Println(errb.String())
         log.Println(err)
         os.Exit(1)
     }
