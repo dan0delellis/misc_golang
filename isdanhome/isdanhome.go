@@ -12,7 +12,7 @@ import (
 
 func main() {
     logFile := "/var/log/status"
-    mac := "40:4e:36:bb:c3:10"
+    mac := "f0:5f:77:f7:21:39"
     oldStatus := getPreviousStatus(logFile)
     danHome := obsessivelyCheckForDan(mac)
     if danHome != oldStatus {

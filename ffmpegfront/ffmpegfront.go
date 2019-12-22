@@ -125,7 +125,7 @@ func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
     if !v.SoftwareEncode {
         args = append(args, []string{"-c:v", "h264_omx", "-profile:v", "high"}...)
     } else {
-        args = append(args, []string{"-provile:v", "high10"}...)
+        args = append(args, []string{"-profile:v", "high10"}...)
     }
 
     if v.VideoBitrate != "" {
