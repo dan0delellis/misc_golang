@@ -126,10 +126,12 @@ func parseVideoSettings(v Video, s Subtitles, f string) (args []string) {
         args = append(args, []string{"-c:v", "h264_omx", "-profile:v", "high"}...)
     } else {
         args = append(args, []string{"-profile:v", "high10"}...)
-    }
 
-    if v.VideoBitrate != "" {
-        args = append(args, []string{"-b:v", v.VideoBitrate}...)
+        if v.Mode == "cbr" && v.VideoBitrate != "" {
+            args = append(args, []string{"-b:v", v.VideoBitrate}...)
+        } else {
+            args = append(args, "-crf", fmt.Sprintf("%d",v.Quality),"-maxrate",fmt.Sprintf("%s",v.VideoMaxRate),"-bufsize",fmt.Sprintf("%s",v.VideoBufSize),"-tune",fmt.Sprintf("%s",v.Tune))
+        }
     }
 
     if v.Resolution != "" || s.BurnInSubtitles {
@@ -197,9 +199,9 @@ func parseAudioSettings(a Audio, file string) (args []string) {
         if (a.Loudnorm2Pass) {
             lnJson := getLoudnormJson(file)
             filter = fmt.Sprintf("loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=%s:measured_LRA=%s:measured_TP=%s:measured_thresh=%s:offset=%s:linear=true", lnJson.OutputI, lnJson.OutputLra, lnJson.OutputTp, lnJson.OutputThresh, lnJson.TargetOffset)
-        } else {
-            filter = "loudnorm"
         }
+    } else {
+        return
     }
 
     args = append(args, []string{"-filter:a", filter}...)
@@ -276,29 +278,29 @@ func makeTemplate(arg string) Settings {
 
 
     jsonMap["template"] = Settings{
-        Video{true,false,"ex-480p, 720p, 1080p, 4k","ex-2000k",},
+        Video{true,false,"ex-480p, 720p, 1080p, 4k","crf or cbr", 23, "film, grain, animation are valid tunes", "ex-2000k", "ex: 4M, not really needed unless you plan to stream the video file over anything but lan, only needed with crf","set this to about 1x-2x your maxrate, only needed with crf"},
         Audio{true,"ex-vorbis, lame, aac, flac","ex- 2, 5.1","ex- loudnorm, might just make this a boolean 'UseLoudnorm' because what other filter am I likely to use?","ex- 200k",false,},
         Subtitles{false,"ex-file.srt, file.mkv.  It will burn the first subtitle track if given a video file. If you want to burn in a different track, then you'll need to extract it from the video file and specify it.  If you need more complicated options, do it manually ¯\\_(ツ)_/¯","styles look like this: 'FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&' note that the hex is BRG because fuck you that's why",},
         Time{0,0,},
         Ready{false,false,"if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting",},
     }
     jsonMap["movie"] = Settings{
-        Video{false,true,"unchanged","unchanged"},
+        Video{false,true,"unchanged","none", 0, "none", "unchanged","none","none"},
         Audio{false,"aac","2","loudnorm","192k",true},
         Subtitles{false,"no file","no style"},
         Time{0,0},
         Ready{false,true,"This is for movies. It leaves the video track untouched, while loudnorming the audio track"},
     }
     jsonMap["tv-high"] = Settings{
-        Video{true,false,"1080p","3M"},
-        Audio{false, "aac", "192k", "2", "loudnorm", true},
+        Video{true,false,"1080p","crf",21,"film","doesnt matter", "4M", "6M"},
+        Audio{false, "aac", "2", "loudnorm", "192k", true},
         Subtitles{false,"no file","no style"},
         Time{0,0},
         Ready{false,true,"This is for TV Shows that need high-quality video stream, but were offered with a stupidly high bitrate because someone doesn't know how to use codecs other than xvid or something.  It also does a software encode in 10bit which is like 10x slower than using the broadcom gpu to do the encode"},
     }
     jsonMap["tv-normal"] = Settings{
-        Video{false,false,"720p","2M"},
-        Audio{false,"aac","192k", "2","loudnorm", true},
+        Video{false,false,"720p","crf",23,"film","doesnt matter","2M", "3M"},
+        Audio{false,"aac","2", "none","192k", false},
         Subtitles{false,"no file","no style"},
         Time{0,0},
         Ready{false,true,"This is for most TV shows. Maybe it was distributed with a higher bitrate than appropriate, or had an obnoxious intro"},
@@ -321,7 +323,12 @@ type Video struct {
     SoftwareEncode bool `json:"softwareEncode"`
     JustCopy   bool  `json:"justCopy"`
     Resolution  string `json:"resolution"`
+    Mode        string `json:"mode"`
+    Quality     int     `json:"quality"`
+    Tune        string  `json:"tune"`
     VideoBitrate string `json:"videoBitrate"`
+    VideoMaxRate     string `json:"videoMaxRate"`
+    VideoBufSize        string `json:"videoBufsize"`
 }
 type Audio struct {
     JustCopy   bool  `json:"justCopy"`

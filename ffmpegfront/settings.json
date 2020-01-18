@@ -1,28 +1,35 @@
 {
   "video": {
+    "softwareEncode": true,
     "justCopy": false,
     "resolution": "1080p",
-    "videoBitrate": "2000k"
+    "mode": "crf",
+    "quality": 21,
+    "tune": "film",
+    "videoBitrate": "doesnt matter",
+    "videoMaxRate": "4M",
+    "videoBufsize": "6M"
   },
   "audio": {
     "justCopy": false,
     "audioCodec": "aac",
     "audioChannels": "2",
-    "audioFilter": "loudnorm",
-    "auidioBitrate": "200k",
-    "loudnorm2Pass": true
+    "audioFilter": "none",
+    "auidioBitrate": "128",
+    "loudnorm2Pass": false
   },
   "subtitles": {
-    "burnInSubtitles": true,
-    "subtitleFile": "subs.ass",
-    "subtitleStyle": "FontName=ubuntu,Fontsize=24,PrimaryColour=&H0000ff&"
+    "burnInSubtitles": false,
+    "subtitleFile": "no file",
+    "subtitleStyle": "no style"
   },
   "time": {
-    "timeSkipIntro": 180,
-    "totalTime": 60
+    "timeSkipIntro": 0,
+    "totalTime": 0
   },
   "ready": {
-    "completed": false,
-    "notes": "if 'JustCopy' is set as true on either audio or video settings, all other settings will be ignored.  Loudnorm2pass will be ignored if audiofilter is not set to 'loudnorm'.  Subtitles are hard to work with and i might delete that setting"
+    "noOverwrite": false,
+    "completed": true,
+    "notes": "This is for TV Shows that need high-quality video stream, but were offered with a stupidly high bitrate because someone doesn't know how to use codecs other than xvid or something.  It also does a software encode in 10bit which is like 10x slower than using the broadcom gpu to do the encode"
   }
 }
