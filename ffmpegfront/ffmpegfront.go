@@ -7,6 +7,7 @@ import (
     "flag"
     "fmt"
     "io/ioutil"
+    "path"
     "regexp"
     "strings"
     "os"
@@ -19,7 +20,7 @@ var argsOnly = flag.Bool("args-only", false, "Output the arguments instead of ex
 var inFile = flag.String("infile", "", "File to process with ffmpeg")
 var outFile = flag.String("outfile", "", "File to write output to")
 var settingsFile = flag.String("settings", "", "settings json file to read.")
-var logDir = flag.String("logfile", "/mnt/tlstc/mnt/4tb/download/rencode/logs/", "log file to write to")
+var logFile = flag.String("logfile", "", "log file to write to")
 
 
 func resolutionMap(res string) (fullRes string) {
@@ -42,7 +43,7 @@ func resolutionMap(res string) (fullRes string) {
 func main() {
     flag.Parse()
 
-    logFile := fmt.Sprintf("%s%s", *logDir, getLogFile(*inFile))
+    logFilePath := getLogFilePath()
 
     if *templateType != "" {
         templateJson := makeTemplate(*templateType)
@@ -112,10 +113,26 @@ func main() {
     log.Printf("Time elapsed: %s\n", duration)
 }
 
-func getLogFile(f string) (logfile string) {
-    fileParts := strings.Split(f, "/")
-    logfile = fileParts[len(fileParts)-1]
-    fmt.Printf("Gonna use this as the log file name: %s\n", logfile)
+func getLogFilePath() (file string) {
+    if  logFile == "" {
+        file = logToOutputDir()
+        return
+    }
+
+    logPath = path.Dir(logFile)
+    fh, err := os.Stat(logPath)
+
+    if err != nil || !fh.IsDir() {
+        file = logToOutputDir()
+        return
+    }
+
+    file = logFile
+    return
+}
+
+func logToOutputDir() (logfile string) {
+    logfile = fmt.Sprintf("%s.log", outFile)
     return
 }
 
@@ -299,7 +316,7 @@ func makeTemplate(arg string) Settings {
         Ready{false,true,"This is for TV Shows that need high-quality video stream, but were offered with a stupidly high bitrate because someone doesn't know how to use codecs other than xvid or something.  It also does a software encode in 10bit which is like 10x slower than using the broadcom gpu to do the encode"},
     }
     jsonMap["tv-normal"] = Settings{
-        Video{false,false,"720p","crf",23,"film","doesnt matter","2M", "3M"},
+        Video{true,false,"720p","crf",23,"film","doesnt matter","2M", "3M"},
         Audio{false,"aac","2", "none","192k", false},
         Subtitles{false,"no file","no style"},
         Time{0,0},
