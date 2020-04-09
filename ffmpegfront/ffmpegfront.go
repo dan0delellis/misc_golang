@@ -57,7 +57,7 @@ func main() {
         os.Exit(1)
     }
 
-    f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+    f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
     if err != nil {
 	log.Println(err)
     }
@@ -114,12 +114,12 @@ func main() {
 }
 
 func getLogFilePath() (file string) {
-    if  logFile == "" {
+    if  *logFile == "" {
         file = logToOutputDir()
         return
     }
 
-    logPath = path.Dir(logFile)
+    logPath := path.Dir(*logFile)
     fh, err := os.Stat(logPath)
 
     if err != nil || !fh.IsDir() {
@@ -127,7 +127,7 @@ func getLogFilePath() (file string) {
         return
     }
 
-    file = logFile
+    file = *logFile
     return
 }
 
@@ -317,7 +317,7 @@ func makeTemplate(arg string) Settings {
     }
     jsonMap["tv-normal"] = Settings{
         Video{true,false,"720p","crf",23,"film","doesnt matter","2M", "3M"},
-        Audio{false,"aac","2", "none","192k", false},
+        Audio{false, "aac", "2", "loudnorm", "192k", true},
         Subtitles{false,"no file","no style"},
         Time{0,0},
         Ready{false,true,"This is for most TV shows. Maybe it was distributed with a higher bitrate than appropriate, or had an obnoxious intro"},
