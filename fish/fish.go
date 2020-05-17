@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-    var fishies []Fish
 
     tsv, _ := os.Open("fishies")
     scn := bufio.NewScanner(tsv)
@@ -22,24 +21,25 @@ func main() {
     for _, val := range(lines) {
         var temp Fish
         temp = parseFish(val)
-        fishies = append(fishies, temp)
+        fmt.Println(temp)
     }
-    fmt.Println(fishies)
 
 }
 
 func parseFish(s string) (f Fish) {
     p := strings.Split(s, "\t")
-    f.Name      = p[0]
-    f.Price     = parseCost(p[1])
-    f.Location  = getLocation(p[2])
-    f.Size      = getSize(p[3])
-    f.Times     = parseTimes(p[4])
-    f.Months    = parseMonths(p[5])
+    f.Type      = p[0]
+    f.Name      = p[1]
+    f.Price     = parseCost(p[2])
+    f.Location  = getLocation(p[3])
+    f.Size      = getSize(p[4])
+    f.Times     = parseTimes(p[5])
+    f.Months    = parseMonths(p[6])
     return
 }
 
 type Fish struct {
+    Type        string
     Name        string
     Price       int64
     Location    Location
@@ -59,6 +59,7 @@ type Shadow struct {
 }
 
 func parseCost(s string) (c int64) {
+    s = strings.Replace(s, ",", "", -1)
     c,_ = strconv.ParseInt(s, 10, 64)
     return
 }
@@ -72,6 +73,8 @@ func getLocation(code string)  (location Location) {
     loc["2"] = Location{"sea", "all"}
     loc["2.1"] = Location{"sea", "pier"}
     loc["2.2"] = Location{"sea", "rain"}
+    loc["-1"] = Location{"water", "all"}
+    loc["-2"] = Location{"water", "fresh"}
 
     location = loc[code]
     return
