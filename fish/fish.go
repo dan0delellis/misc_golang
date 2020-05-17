@@ -1,6 +1,8 @@
 package main
 
 import (
+    "database/sql"
+    _ "github.com/go-sql-driver/mysql"
     "fmt"
     "os"
     "bufio"
@@ -17,12 +19,98 @@ func main() {
     for scn.Scan() {
         lines = append(lines, scn.Text())
     }
-
+    var fishies []Fish
     for _, val := range(lines) {
         var temp Fish
         temp = parseFish(val)
-        fmt.Println(temp)
+        fishies = append(fishies, temp)
     }
+
+fmt.Println("made fishes, now opening db")
+    db, err := sql.Open("mysql", "golang:donkeyboner@tcp(127.0.0.1:3306)/nh")
+fmt.Println("open db")
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+    defer db.Close()
+    err = db.Ping()
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+
+fmt.Println("able to ping db")
+    for _, val := range(fishies) {
+        id := insertFish(db, val)
+        if id == 0 {
+            continue
+        }
+
+fmt.Println("setting time data for")
+fmt.Println(val)
+        setTemporalData(id, val, db)
+    }
+
+}
+
+func setTemporalData(id int64, f Fish, db *sql.DB) {
+    tx, err := db.Begin()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    st, err := tx.Prepare("insert into creatures_time (time_id, creature_id) values (?, ?)")
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    for key, val := range(f.Times) {
+        if val {
+            _, err = st.Exec(key+1, id)
+            if err != nil {
+                fmt.Println(err)
+                tx.Rollback()
+                return
+            }
+        }
+    }
+
+    st, err = tx.Prepare("insert into creatures_months (month_id, creature_id) values (?, ?)")
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    for key, val := range(f.Months) {
+        if val {
+            _, err = st.Exec(key+1, id)
+            if err != nil {
+                fmt.Println(err)
+                tx.Rollback()
+                return
+            }
+        }
+    }
+    tx.Commit()
+}
+
+func insertFish(db *sql.DB, f Fish) (id int64) {
+    st, err := db.Prepare("Insert into creatures (type, name, price, location, location_sub, size, fin) values (?, ?, ?, ?, ?, ?, ?)")
+    res, err := st.Exec(f.Type, f.Name, f.Price, f.Location.Main, f.Location.Sub, f.Size.Size, f.Size.Fin)
+    if err != nil {
+        fmt.Println(err)
+        return 0
+    }
+    id, err = res.LastInsertId()
+
+    if err != nil {
+        fmt.Println(err)
+        return 0
+    }
+    return
 
 }
 
@@ -66,14 +154,14 @@ func parseCost(s string) (c int64) {
 
 func getLocation(code string)  (location Location) {
     loc := make(map[string]Location)
-    loc["0"] = Location{"river", "all"}
+    loc["0"] = Location{"river", ""}
     loc["0.1"] = Location{"river", "mouth"}
     loc["0.2"] = Location{"river", "cliff"}
-    loc["1"] = Location{"lake", "all"}
-    loc["2"] = Location{"sea", "all"}
+    loc["1"] = Location{"lake", ""}
+    loc["2"] = Location{"sea", ""}
     loc["2.1"] = Location{"sea", "pier"}
     loc["2.2"] = Location{"sea", "rain"}
-    loc["-1"] = Location{"water", "all"}
+    loc["-1"] = Location{"water", ""}
     loc["-2"] = Location{"water", "fresh"}
 
     location = loc[code]
