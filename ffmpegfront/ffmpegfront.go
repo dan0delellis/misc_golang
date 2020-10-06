@@ -35,7 +35,7 @@ func resolutionMap(res string) (fullRes string) {
         fullRes = resolutions[res]
         return
     }
-    log.Printf("%s is not a preprogramed resolution\n", res)
+    log.Printf("%s is not a preprogramed resolution. Please enter it as w:h in the 'resolution' field.  ex: 'resolution': '1280:720'\n", res)
     os.Exit(1)
     return ""
 }
@@ -65,7 +65,7 @@ func main() {
     log := log.New(f, "ffmpegfront", log.LstdFlags)
 
     settings := parseSettingsJson(*settingsFile)
-    log.Printf("loaded settings: %s", settings)
+    log.Printf("loaded settings: %v", settings)
 
     args := []string{"-i", *inFile}
 
@@ -80,7 +80,7 @@ func main() {
     if settings.Time.TotalTime != 0 {
         args = append(args, []string{"-t", fmt.Sprintf("%d",settings.Time.TotalTime)}...)
     }
-    log.Printf("parsing audio options")
+    log.Printf("parsing audio options.  Args so far:\n%v", args)
 
     if(settings.Audio.JustCopy) {
         args = append(args, []string{"-c:a", "copy"}...)
@@ -88,7 +88,7 @@ func main() {
         audioArgs := parseAudioSettings(settings.Audio, *inFile)
         args = append(args, audioArgs...)
     }
-    log.Printf("parsing video options", args)
+    log.Printf("parsing video options.  Args so far:\n%v", args)
 
     if(settings.Video.JustCopy) {
         args = append(args, []string{"-c:v", "copy"}...)
@@ -132,7 +132,7 @@ func getLogFilePath() (file string) {
 }
 
 func logToOutputDir() (logfile string) {
-    logfile = fmt.Sprintf("%s.log", outFile)
+    logfile = fmt.Sprintf("%s.log", *outFile)
     return
 }
 
@@ -228,7 +228,7 @@ func parseAudioSettings(a Audio, file string) (args []string) {
 
 func getLoudnormJson(file string) (lnJson loudnormValues) {
     log.Printf("getting loudnorm 2 pass values")
-    args := []string{"-i", file, "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"} //those values are pretty standard and I feel OK having them hardcoded.
+    args := []string{"-i", file, "-vn", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"} //those values are pretty standard and I feel OK having them hardcoded.
     cmd := exec.Command("ffmpeg", args...)
     var errb bytes.Buffer
     cmd.Stderr = &errb
