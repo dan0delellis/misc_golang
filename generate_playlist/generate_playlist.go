@@ -2,7 +2,7 @@ package main
 
 import (
     "fmt"
-    taglib "github.com/wtolson/go-taglib"
+    taglib "github.com/wtolson/go-taglib" //requires packae libtagc0-dev; requires `go get github.com/wtolson/go-taglib`
     "flag"
     "time"
     "os"
@@ -31,10 +31,13 @@ func main() {
 
     for _,file := range fileList {
         track := scanFile(file)
+	if (track.FilePath == "!!!!I AM NOT AN AUDIO FILE WITH ID TAGS!!!!!!") {
+	    continue
+	}
         if !keepTrack(track, exclusions) {
             track.FilePath = strings.Join([]string{"#",track.FilePath}, " ")
         }
-       filesToKeep = append(filesToKeep, track.FilePath)
+	filesToKeep = append(filesToKeep, track.FilePath)
 
 
     }
@@ -122,6 +125,7 @@ func getFiles(root string) (fileList []string) {
 
 func scanFile(filename string) (songData trackInfo) {
     songFile, err := taglib.Read(filename)
+    songData.FilePath = "!!!!I AM NOT AN AUDIO FILE WITH ID TAGS!!!!!!"
 
     if err != nil {
         return
