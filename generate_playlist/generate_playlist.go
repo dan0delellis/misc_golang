@@ -24,7 +24,7 @@ func main() {
 
     fmt.Println(exclusions)
 
-
+    fmt.Println("getting files")
     fileList := getFiles(exclusions.Root)
 
     var filesToKeep []string
@@ -52,6 +52,7 @@ func keepTrack(file trackInfo, drop Exclusions) bool {
     var err error
     minTime, err := time.ParseDuration(drop.MinTime)
     maxTime, err := time.ParseDuration(drop.MaxTime)
+    fmt.Println(file.FilePath)
 
     if err != nil {
         os.Exit(1)
@@ -111,16 +112,16 @@ func getFiles(root string) (fileList []string) {
             return err
         }
         fileList = append(fileList, path)
+        fmt.Println(path)
         return nil
 
     })
     if err != nil {
+        fmt.Println(err)
         os.Exit(1)
     }
 
     return fileList
-
-
 }
 
 func scanFile(filename string) (songData trackInfo) {
