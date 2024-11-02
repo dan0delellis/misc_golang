@@ -2,21 +2,27 @@ package main
 import (
     "fmt"
     "strings"
-//    "math/rand"
+    "crypto/md5"
+    "os"
 )
 
 const clear = "\\[\\033[00m\\]"
 
 func main() {
-    prompt := getPrompt()
-    fmt.Print(prompt)
+    fmt.Print(getPrompt)
 }
 
 func getPrompt() string {
-    colorTime := 4895418 % 256
-    colorUser := 5475 % 256
-    colorHost := 789784634 % 256
-    colorPwd := 4574878 % 256
+    hostname, _ := os.Hostname()
+    hash := md5.Sum([]byte(hostname))
+
+    offset := 4
+
+    colorTime := hash[offset+0]
+    colorUser := hash[offset+1]
+    colorHost := hash[offset+2]
+    colorPwd := hash[offset+3]
+
     parts := []string {
         //time
         "(" + foreground(colorTime,"t") + ") ",
@@ -46,11 +52,10 @@ func getPrompt() string {
     return strings.Join(parts, "")
 }
 
-func foreground(i int,a string) string {
-    return fmt.Sprintf("\\[\\033[38;05;%dm\\]%s%s",i,esc(a),clear)
+func foreground(i uint8, a string) string {
+    return fmt.Sprintf("\\[\\033[38;05;%dm\\]%s%s", i, esc(a), clear)
 }
 
 func esc(a string) string {
     return fmt.Sprintf("\\%s", a)
 }
-
