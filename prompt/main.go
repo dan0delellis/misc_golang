@@ -9,7 +9,8 @@ import (
 const clear = "\\[\\033[00m\\]"
 
 func main() {
-    fmt.Print(getPrompt)
+    prompt := getPrompt()
+    fmt.Print(prompt)
 }
 
 func getPrompt() string {
