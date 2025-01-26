@@ -2,30 +2,11 @@ package main
 import (
     "fmt"
     "os"
-    "golang.org/x/net/html"
-    "slices"
-    "strings"
-    "github.com/moby/sys/mount"
     "io/fs"
     "time"
+    "github.com/moby/sys/mount"
+    "syscall"
 )
-
-const blkidCache = "/run/blkid/blkid.tab"
-const fsTypeKey = "type"
-const mode = "ro"
-
-const fsLabelKey = "label"
-const partLabel = "nikon"
-
-const tempDir = "temp"
-const tempPrefix = "camera_sd"
-
-const dateDirFormat = "20060102"
-const targetDir = "mnt/media/photos/sort/"
-
-func fsTypes() ([]string) {
-    return []string{"exfat", "fat32"}
-}
 
 func mountPointName() string {
     return fmt.Sprintf("%s/%s.%x",tempDir,tempPrefix, time.Now().Unix())
@@ -38,7 +19,6 @@ func main() {
     }()
 
     mountPoint := mountPointName()
-    fmt.Println(mountPoint)
 
     fsRoot, err := findAndMountDisk(blkidCache, mountPoint)
     if err != nil {
@@ -60,49 +40,10 @@ func main() {
         rc = 1
         return
     }
-}
-
-func findAndMountDisk(cache, mountPoint string) (targetFS fs.FS, err error) {
-    targetDisk, fsType, err := getDiskPath(blkidCache)
-    if err != nil {
-        err = fmt.Errorf("Unable to locate applicable disk: %v", err)
-        return
-    }
-    if targetDisk == "" {
-        return
-    }
-    fmt.Println("target disk ", targetDisk,", filesystem ", fsType)
-
-    err = os.Mkdir(mountPoint, 0755)
-    if err != nil {
-        err = fmt.Errorf("Unable to create temp mountpoint: %v", err)
-        return
-    }
-
-    err = mount.Mount(targetDisk, mountPoint, fsType, mode)
-    if err != nil {
-        err = fmt.Errorf("Unable to mount disk to mountpoint: %v", err)
-        return
-    }
-
-    targetFS = os.DirFS(mountPoint)
-    return
-}
-
-func walkies(path string, d fs.DirEntry, err error) (errr error) {
-    if errr != nil {
-        errr = fmt.Errorf("error on path:%v",errr)
-        return
-    }
-    if d.IsDir() {
-        return
-    }
-    err = process(path,d)
-    if errr != nil {
-        errr = fmt.Errorf("error operating on %s: %s\n", path, err)
-        return
-    }
-    return
+    hork, _ := os.Open(archiveDir)
+    dork, _ := hork.Stat()
+    ooga := dork.Sys().(*syscall.Stat_t)
+    fmt.Printf("%+v\n", ooga)
 }
 
 func process(p string, d fs.DirEntry) (err error) {
@@ -110,69 +51,31 @@ func process(p string, d fs.DirEntry) (err error) {
     if err != nil {
         return
     }
+
     dateDir := mtime.Local().Format(dateDirFormat) + "/"
-    fmt.Println("cp ", p, size, targetDir + dateDir + d.Name())
-    return
-}
+    archivePath := fmt.Sprintf("%s/%s", archiveDir, dateDir)
+    archiveFile := fmt.Sprintf("%s/%s", archivePath, d.Name())
 
-func stat(d fs.DirEntry) (size int64, mtime time.Time, err error) {
-    stat, err := d.Info()
-    if err != nil {
-        return
-    }
-    size = stat.Size()
-    mtime = stat.ModTime()
-    return
-}
-
-func getDiskPath(p string) (diskId, diskFS string, err error) {
-    devs, err := os.Open(p)
-    defer devs.Close()
-
-    if err != nil {
-        err = fmt.Errorf("Failed opening %s:%s", p, err)
+    //does the file already exist?
+    _, eNoEnt := os.Stat(archiveFile)
+    if eNoEnt == nil {
+        //no error means the file is already there
         return
     }
 
-    data, err := html.Parse(devs)
+    //create archive+date dir if needed
+    err = os.MkdirAll(archivePath, 0775)
     if err != nil {
-        err = fmt.Errorf("Failed parsing dev data: %s", err)
         return
     }
+    fmt.Println("cp ", p, size, archiveDir + dateDir + d.Name())
+    //copy from mounted filesystem into archive
+        //delete partial archive file if there was a failure
 
-    for n := range data.Descendants() {
-        ok, fs := validateAttrs(n); if ok {
-            diskId = n.Data
-            diskFS = fs
-        }
-    }
-    if diskFS == "" {
-        err = fmt.Errorf("Failed to identify disk filesystem: %s", diskId)
-    }
-    return
-}
-
-func validateAttrs(n *html.Node) (ok bool, fs string) {
-    if n.Type == html.TextNode && len(n.Parent.Attr) > 0 {
-        var hasCorrectLabel, hasCorrectFS bool
-
-        for _, v := range n.Parent.Attr {
-            if v.Key == fsLabelKey {
-                if strings.HasPrefix(strings.ToLower(v.Val), partLabel) {
-                    hasCorrectLabel = true
-                }
-            }
-            if v.Key == fsTypeKey {
-                if slices.Contains(fsTypes(), v.Val) {
-                    hasCorrectFS = true
-                    fs = v.Val
-                }
-            }
-            if hasCorrectLabel && hasCorrectFS && fs != "" {
-                ok = true
-            }
-        }
-    }
+    //create human-friendly directory
+    //hardlink archive to human-friendly
+    //force file+dirs to be owned by the dir root owner
+    //force atime/mtime/ctime to be `mtime.Unix()` in syscall.Utime
 
     return
 }
