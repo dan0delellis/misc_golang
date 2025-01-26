@@ -24,7 +24,13 @@ func main() {
     if err != nil {
         panic(err)
     }
-    fmt.Println(libraries)
+
+    libraryUrl := mediaServer + "/Users/" + adminUid + "/Items/"
+    for _, v := range libraries {
+        fmt.Println(v)
+        itemUrl := libraryUrl + "?Recursive=true&ParentId=" + v.Id + "&fields=Path&" + keyParam
+        fmt.Println(itemUrl)
+    }
 }
 
 func getLibraries(url string) (l []libraryStruct, e error) {
