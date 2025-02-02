@@ -10,7 +10,7 @@ const clear = "\\[\\033[00m\\]"
 
 func main() {
     prompt := getPrompt()
-    fmt.Print(prompt)
+    fmt.Print("PS1=" + `"` + prompt + `"`)
 }
 
 func getPrompt() string {
@@ -44,7 +44,7 @@ func getPrompt() string {
         foreground(colorPwd,"w"),
 
         //newline
-        "\n",
+        "\\n",
 
         //prompt char
         esc("$ "),
