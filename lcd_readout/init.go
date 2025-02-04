@@ -31,7 +31,7 @@ func InitLCD(path string) (d Display, err error) {
     }
     d = Display{l}
     d.Clear()
-    d.NoCursors()
+    d.NoCursor()
     d.SetSize(cols, rows)
     d.SetAutoscroll(false)
     d.SetBrightness(16)
@@ -78,7 +78,7 @@ func (d Display) StaticUnderlineOff() {
 }
 
 // NoCursor turns off both the blinking block cursor and the static underline cursor
-func (d Display) NoCursors() {
+func (d Display) NoCursor() {
     d.StaticUnderlineOff()
     d.BlinkyBlockOff()
 }

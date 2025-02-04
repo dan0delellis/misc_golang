@@ -13,8 +13,9 @@ func main() {
     }
     lcd.Clear()
     lcd.BlinkyBlock()
-    lcd.Marquee("NOW WHAT")
 
+    lcd.Off()
+    lcd.NoCursor()
     defer lcd.Close()
 }
 
