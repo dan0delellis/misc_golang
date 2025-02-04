@@ -2,9 +2,9 @@ package main
 
 import (
     "fmt"
-    _"time"
+    "time"
 )
-
+const wait = 3
 func main() {
     lcd, err := initLCD("/dev/ttyACM0")
     if err != nil {
@@ -12,19 +12,20 @@ func main() {
         return
     }
     defer lcd.Close()
-    lcd.Printf("% -5s %x %f", "fun", 145, 1.34)
+    lcd.Printf("hello!\ndo you like cheese")
+    time.Sleep(wait*time.Second)
+    lcd.Clear()
+    lcd.SetBG(0,128,32)
+    lcd.Print("now I am green")
+    time.Sleep(wait*time.Second)
+    lcd.Clear()
+    lcd.SetBG(32,32,128)
+    lcd.Print("good bye")
+    time.Sleep(wait*time.Second)
+    lcd.Clear()
+    lcd.SetBG(0,0,0)
 }
-// Writef writes the content to the display, formatted with the provided string and the args Printf expects
-func (d Display) Printf(s string, a ...any) (n int, err error) {
-    return fmt.Fprintf(d, s, a...)
-}
-
-// Write writess the provided string to the display
-func (d Display) Print(s string) (n int, err error) {
-    return fmt.Fprintf(d, s)
-}
-
-// marqee will scroll the given text across one line.
+// Marqee will scroll the given text across one line.
 func (d Display) Marqee(s string) {
 
 }

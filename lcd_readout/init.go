@@ -24,12 +24,7 @@ func initLCD(path string) (d Display, err error) {
     return
 }
 
-// Height returns the number of rows the LCD was set with
-// The interface is write-only so this really just returns the unexported constant
-func (d Display) Height() int { return rows }
-
-// Width returns the number of rows the LCD was set with
-// The interface is write-only so this really just returns the unexported constant
-func (d Display) Width() int {return cols}
-
-type Display struct{serial_lcd.LCD}
+//TODO: make this a struct that is a [] of [16]byte but only allows `rows` elements of it to be populated
+type Display struct {
+    serial_lcd.LCD
+}
