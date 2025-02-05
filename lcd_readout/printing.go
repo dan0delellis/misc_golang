@@ -40,7 +40,7 @@ func (d Display) Marquee(s string) {
     //Replace newlines with two spaces, add two spaces to the end
     b := append(buffer, append(singleLineBreak.ReplaceAll([]byte(s), twospace), twospace...)...)
 
-    for i:=0; ;i++ {
+    for i:=0; i <= len(b) ;i++ {
         d.Home()
 
         for j:=0; j < len(buffer); j++ {
@@ -48,6 +48,6 @@ func (d Display) Marquee(s string) {
             d.Print(string(b[(j+i) % len(b)]))
         }
 
-        time.Sleep(350 * time.Millisecond)
+        time.Sleep(250 * time.Millisecond)
     }
 }

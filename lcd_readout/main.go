@@ -14,6 +14,17 @@ func main() {
         return
     }
 
+    lcd.Print("Here")
+    time.Sleep(300 * time.Millisecond)
+    lcd.Print(" we")
+    time.Sleep(300 * time.Millisecond)
+    lcd.Print(" GO!\n")
+    time.Sleep(300 * time.Millisecond)
+
+
+    lcd.ColorKeyword("green")
+    lcd.Print("color test")
+    time.Sleep(time.Second)
     i := 0
     for k,v := range colornames.Map {
         i++
@@ -26,10 +37,11 @@ func main() {
             break
         }
     }
+    lcd.Clear()
+    lcd.ColorKeyword("gold")
 
-    if err != nil {
-        fmt.Println(err)
-    }
+    lcd.Print("brightness test")
+    time.Sleep(time.Second)
 
     for _, v := range BrightnessNames {
         lcd.Clear()
@@ -39,5 +51,13 @@ func main() {
         time.Sleep(500 * time.Millisecond)
     }
 
+    lcd.BrightnessKeyword("dim")
     lcd.Marquee(`Lorem ipsum dolor sit amet`)
+    lcd.Home()
+    lcd.BrightnessKeyword("moderate")
+    lcd.ColorKeyword("magenta")
+    lcd.Print("Later, tater!")
+    time.Sleep(time.Second)
+    lcd.BrightnessKeyword("off")
+    lcd.Clear()
 }
