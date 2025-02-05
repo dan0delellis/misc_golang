@@ -34,7 +34,7 @@ func InitLCD(path string) (d Display, err error) {
     d.NoCursor()
     d.SetSize(cols, rows)
     d.SetAutoscroll(false)
-    d.SetBrightness(16)
+    d.SetBrightness(BrightnessMap["moderate"])
     d.SetContrast((212))
     d.SetBG(225, 0, 0)
     d.Raw(serial_lcd.COMMAND, 0x44)
