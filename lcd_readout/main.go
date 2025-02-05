@@ -3,40 +3,41 @@ package main
 import (
     "fmt"
     "time"
+    "golang.org/x/image/colornames"
 )
 const wait = 3
 func main() {
     lcd, err := InitLCD("/dev/ttyACM0")
+    defer lcd.Close()
     if err != nil {
         fmt.Println(err)
         return
     }
-    lcd.Clear()
-    lcd.BlinkyBlock()
 
-    lcd.Off()
-    lcd.NoCursor()
-    defer lcd.Close()
-}
-
-
-// Wait, that's illegal!
-var fmtWidthStr = fmt.Sprintf("% " + fmt.Sprintf("%d",cols) + "s")
-
-// Marquee will scroll the given text across one line. This requires that the width is set correctly or it will look strange
-// Single line breaks, be them \r, \n, or \rn, are replaced with two spaces
-// It will not move the cursor with the text. It will hopefully block all text input while running.
-func (d Display) Marquee(s string) {
-    s = string(singleLineBreak.ReplaceAll([]byte(s), twospace))
-
-    //This is going to be the row of text we display
-    buffer := fmt.Sprintf(fmtWidthStr,"")
-
-
-    for i:=0; i < len(s); i++ {
-        d.Home()
-        d.Print(buffer)
-        time.Sleep(300 * time.Millisecond)
+    i := 0
+    for k,v := range colornames.Map {
+        i++
+        lcd.Clear()
+        lcd.Print(k)
+        lcd.SetBG(v.R, v.G, v.B)
+        lcd.Home()
+        time.Sleep(700 * time.Millisecond)
+        if i > 10 {
+            break
+        }
     }
-}
 
+    if err != nil {
+        fmt.Println(err)
+    }
+
+    for _, v := range BrightnessNames {
+        lcd.Clear()
+        lcd.Print(v)
+        lcd.BrightnessKeyword(v)
+        lcd.Home()
+        time.Sleep(500 * time.Millisecond)
+    }
+
+    lcd.Marquee(`Lorem ipsum dolor sit amet`)
+}
