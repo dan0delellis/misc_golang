@@ -8,6 +8,17 @@ import (
     "slices"
     "strings"
 )
+
+const fsTypeKey = "type"
+const mountMode = "ro"
+
+const fsLabelKey = "label"
+const partLabel = "nikon"
+
+func fsTypes() ([]string) {
+    return []string{"exfat", "fat32"}
+}
+
 func getDiskPath(p string) (diskId, diskFS string, err error) {
     devs, err := os.Open(p)
     defer devs.Close()
@@ -44,19 +55,21 @@ func findAndMountDisk(cache, mountPoint string) (targetFS fs.FS, err error) {
     if targetDisk == "" {
         return
     }
-    fmt.Println("target disk ", targetDisk,", filesystem ", fsType)
+    debug("target disk ", targetDisk,", filesystem ", fsType)
 
     err = os.Mkdir(mountPoint, 0755)
     if err != nil {
         err = fmt.Errorf("Unable to create temp mountpoint: %v", err)
         return
     }
+    debug("made mountpoint", mountPoint)
 
-    err = mount.Mount(targetDisk, mountPoint, fsType, mode)
+    err = mount.Mount(targetDisk, mountPoint, fsType, mountMode)
     if err != nil {
         err = fmt.Errorf("Unable to mount disk to mountpoint: %v", err)
         return
     }
+    debug("mounted disk")
 
     targetFS = os.DirFS(mountPoint)
     return
