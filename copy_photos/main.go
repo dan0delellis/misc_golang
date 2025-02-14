@@ -1,4 +1,6 @@
 package main
+//TODO: make sure intermediary directories have the right ownership
+//TODO: clean up the process() func
 import (
     "fmt"
     "os"
