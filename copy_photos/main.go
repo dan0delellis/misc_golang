@@ -8,17 +8,32 @@ import (
     "syscall"
 )
 
+const tempDir = "temp"
+const tempPrefix = "camera_sd"
+const blkidCache = "/run/blkid/blkid.tab"
+
+const dateDirFormat = "20060102"
+
+var verbose bool
+
+var photosUid int
+var photosGid int
+var mountPoint string
+
 func mountPointName() string {
     return fmt.Sprintf("%s/%s.%x",tempDir,tempPrefix, time.Now().Unix())
 }
 
 func main() {
+    verbose = true
     var rc int
     defer func() {
         os.Exit(rc)
     }()
 
-    mountPoint := mountPointName()
+    mountPoint = mountPointName()
+
+    var err error
 
     fsRoot, err := findAndMountDisk(blkidCache, mountPoint)
     if err != nil {
@@ -26,6 +41,15 @@ func main() {
         rc = 1
         return
     }
+    debug("found fsroot:", fsRoot)
+
+    photosUid, photosGid, err = getIds(photosDir)
+    if err != nil {
+        fmt.Printf("Error reading target dir (%s) info: %w", photosDir, err)
+        rc=1
+        return
+    }
+    debug("user ids of target dir:", photosUid, photosGid)
 
     err = fs.WalkDir(fsRoot, ".", walkies)
     if err != nil {
@@ -33,6 +57,7 @@ func main() {
         fmt.Printf("Error traversing filesystem: %v\n", err)
         return
     }
+    debug("done walking files")
 
     err = mount.Unmount(mountPoint)
     if err != nil {
@@ -40,42 +65,27 @@ func main() {
         rc = 1
         return
     }
-    hork, _ := os.Open(archiveDir)
-    dork, _ := hork.Stat()
-    ooga := dork.Sys().(*syscall.Stat_t)
-    fmt.Printf("%+v\n", ooga)
+    debug("umonted disk")
 }
 
-func process(p string, d fs.DirEntry) (err error) {
-    size, mtime, err := stat(d)
+func getIds(path string) (user, group int, err error) {
+    d, err := os.Open(path)
     if err != nil {
         return
     }
-
-    dateDir := mtime.Local().Format(dateDirFormat) + "/"
-    archivePath := fmt.Sprintf("%s/%s", archiveDir, dateDir)
-    archiveFile := fmt.Sprintf("%s/%s", archivePath, d.Name())
-
-    //does the file already exist?
-    _, eNoEnt := os.Stat(archiveFile)
-    if eNoEnt == nil {
-        //no error means the file is already there
-        return
-    }
-
-    //create archive+date dir if needed
-    err = os.MkdirAll(archivePath, 0775)
+    stat, err := d.Stat()
     if err != nil {
         return
     }
-    fmt.Println("cp ", p, size, archiveDir + dateDir + d.Name())
-    //copy from mounted filesystem into archive
-        //delete partial archive file if there was a failure
+    fileSys := stat.Sys()
 
-    //create human-friendly directory
-    //hardlink archive to human-friendly
-    //force file+dirs to be owned by the dir root owner
-    //force atime/mtime/ctime to be `mtime.Unix()` in syscall.Utime
-
+    a := fileSys.(*syscall.Stat_t)
+    user = int(a.Uid)
+    group = int(a.Gid)
     return
+}
+func debug(a ...any) {
+    if verbose {
+        fmt.Println(a)
+    }
 }
