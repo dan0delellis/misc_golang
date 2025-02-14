@@ -1,6 +1,9 @@
 package main
 //TODO: make sure intermediary directories have the right ownership
 //TODO: clean up the process() func
+//TODO: verify nikon fs with that 512 byte zero file
+//TODO: clean up mnt dir
+//TODO: close opened files
 import (
     "fmt"
     "os"
