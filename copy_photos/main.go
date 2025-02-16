@@ -1,9 +1,7 @@
 package main
-//TODO: make sure intermediary directories have the right ownership
 //TODO: clean up the process() func
 //TODO: verify nikon fs with that 512 byte zero file
-//TODO: clean up mnt dir
-//TODO: close opened files
+//TODO: report to redis for status readout
 import (
     "fmt"
     "os"
@@ -30,15 +28,18 @@ func mountPointName() string {
 }
 
 func main() {
-    verbose = true
+    verbose = false
     var rc int
+    var err error
+
     defer func() {
         os.Exit(rc)
     }()
 
-    mountPoint = mountPointName()
+    photosUid, photosGid, err = getIds(photosDir)
+    debug("user ids of target dir:", photosUid, photosGid)
 
-    var err error
+    mountPoint = mountPointName()
 
     fsRoot, err := findAndMountDisk(blkidCache, mountPoint)
     if err != nil {
@@ -47,14 +48,21 @@ func main() {
         return
     }
     debug("found fsroot:", fsRoot)
+    defer func() {
+        err = mount.Unmount(mountPoint)
+        if err != nil {
+            fmt.Printf("Error unmounting filesystem: %v\n", err)
+            rc = 1
+            return
+        }
+        debug("umonted disk")
+    }()
 
-    photosUid, photosGid, err = getIds(photosDir)
     if err != nil {
         fmt.Printf("Error reading target dir (%s) info: %w", photosDir, err)
         rc=1
         return
     }
-    debug("user ids of target dir:", photosUid, photosGid)
 
     err = fs.WalkDir(fsRoot, ".", walkies)
     if err != nil {
@@ -64,13 +72,16 @@ func main() {
     }
     debug("done walking files")
 
-    err = mount.Unmount(mountPoint)
+    debug("forcing owner/perms")
+    photoDirRoot := os.DirFS(photosDir)
+
+    err = fs.WalkDir(photoDirRoot, ".", setPermissions)
     if err != nil {
-        fmt.Printf("Error unmounting filesystem: %v\n", err)
+        fmt.Printf("Error forcing owner/perms of content: %v\n", err)
         rc = 1
         return
     }
-    debug("umonted disk")
+    debug("done")
 }
 
 func getIds(path string) (user, group int, err error) {
@@ -89,6 +100,7 @@ func getIds(path string) (user, group int, err error) {
     group = int(a.Gid)
     return
 }
+
 func debug(a ...any) {
     if verbose {
         fmt.Println(a)
