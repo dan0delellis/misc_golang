@@ -1,163 +1,126 @@
 package main
 
 import (
-    "time"
     "io/fs"
     "fmt"
-    "syscall"
     "os"
 )
 
-const photosDir     = "mnt/media/photos"
+const photosDir     = "horkhorkhork"
 const sortDir       = "sort"
 const archiveDir    = ".copy_target"
+const minSize       = 1_000
 
 //operates on a single dir entry, this function is specific to source files on the mounted SD card
-func walkies(leafFile string, d fs.DirEntry, err error) (errr error) {
-    debug("working file", leafFile)
-    if errr != nil {
-        errr = fmt.Errorf("error on path:%v",errr)
-        return
+func walkies(path string, d fs.DirEntry, err error) (error) {
+    debug("working file", path)
+    if err != nil {
+        return fmt.Errorf("error on path:%v", err)
     }
 
     if ( d.IsDir() || ! d.Type().IsRegular() ) {
-        return
+        return nil
     }
 
-    err = process(leafFile,d)
-    if errr != nil {
-        errr = fmt.Errorf("error operating on %s: %s\n", leafFile, err)
-        return
-    }
-    return
-}
-
-
-func stat(d fs.DirEntry) (size int64, mtime time.Time, err error) {
-    stat, err := d.Info()
+    err = process(path,d)
     if err != nil {
-        return
+        return fmt.Errorf("error operating on %s: %s\n", path, err)
     }
-    size = stat.Size()
-    mtime = stat.ModTime()
-
-    return
+    return nil
 }
 
-func (t *TargetFile) Generate(f fs.DirEntry) ( i fs.FileInfo, e error ){
-    i, e = f.Info()
-    if e != nil {
-        return
+//This is a walkdir func
+func setPermissions(path string, d fs.DirEntry, err error) (error) {
+    if err != nil {
+        return fmt.Errorf("error setting permissions on path:%v", err)
     }
-    dateDir := i.ModTime().Local().Format(dateDirFormat) + "/"
+    if ! ( d.Type().IsRegular() || d.IsDir() ) {
+        return nil
+    }
+    path = photosDir + "/" + path
 
-    t.ArchivePath = fmt.Sprintf("%s/%s/%s", photosDir, archiveDir, dateDir)
-    t.ArchiveFile = fmt.Sprintf("%s/%s", t.ArchivePath, f.Name())
+    chOwnErr := os.Chown(path, photosUid, photosGid)
+    if chOwnErr != nil {
+        return fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d)", path, photosUid, photosGid)
+    }
+    debug("changed owner")
 
-    t.SortPath    = fmt.Sprintf("%s/%s/%s", photosDir, sortDir, dateDir)
-    t.SortFile    = fmt.Sprintf("%s/%s", t.SortPath, f.Name())
+    var bitMode fs.FileMode
+    if d.IsDir() {
+        bitMode = 0775
+    } else {
+        bitMode = 0664
+    }
 
-    return
-}
+    chmodErr := os.Chmod(path, bitMode)
+    if chmodErr != nil {
+        return fmt.Errorf("Error setting permissions on %s to %v: %w", path, bitMode, chmodErr)
+    }
+    debug("set permissions")
 
-//This should create the dir paths for ArchivePath and SortPath
-func (t *TargetFile) MakePaths() (err error) {
-    return
-}
-
-// A TargetFile struct stores the paths for the initial copy (archive) of a copied photo, and the non-hidden sortable file
-// the sortable file will be a hardlink to the archive file.
-type TargetFile struct {
-    ArchivePath, ArchiveFile string
-    SortPath, SortFile string
+    return nil
 }
 
 func process(p string, d fs.DirEntry) (err error) {
     var target TargetFile
-    srcInfo, srcErr := target.Generate(d)
-    if err != nil {
+    srcErr := target.Generate(d)
+    if srcErr != nil {
         err = fmt.Errorf("Error generating target paths from source file (%s) info: %w", d.Name(), srcErr)
         return
     }
     debug("got src file meta", d.Name())
+    if target.Info.Size() < minSize {
+        debug("this file is below minsize")
+        return
+    }
 
     //does the file already exist?
-    //move this to its own function
-    afStat, eNoEnt := os.Stat(target.ArchiveFile)
+    archiveFileInfo, eNoEnt := os.Stat(target.ArchiveFile)
     if eNoEnt == nil {
         //no error means a file is already there
-
         //is it the same file? check stat of sourcefile
-        if afStat.Size() == srcInfo.Size() && afStat.ModTime() == srcInfo.ModTime() {
-            //these are likely the same file, and the target file is complete
+        if compareSrcTgt(target.Info, archiveFileInfo) {
             return
-        } else {
-            debug(fmt.Sprintf("target file %s already exists but (%d:%s) does not match size:mtime of source (%d:%s)", target.ArchiveFile, afStat.Size(), afStat.ModTime().Local().Format(time.RFC3339), srcInfo.Size(), srcInfo.ModTime().Local().Format(time.RFC3339)))
-            debug("overwriting")
         }
     }
+
     debug("target does not exist:", target.ArchiveFile)
 
-    //create archive+date dir if needed
-    //move this to its own function
-    archDirErr := os.MkdirAll(target.ArchivePath, 0775)
-    if archDirErr != nil {
-        err = fmt.Errorf("Error creating archive directory %s: %w", target.ArchivePath, archDirErr)
+    //Dont create directories until we know they are required
+    dirErr := target.MakePaths()
+    if dirErr != nil {
+        err = dirErr
         return
     }
-    debug("made target dir", target.ArchivePath)
-    //copy from mounted filesystem into archive
-    raw, readErr := os.ReadFile(mountPoint+"/"+p)
-    if readErr != nil {
-        err = fmt.Errorf("Error trying to copy contents of %s: %w", d.Name(), readErr)
-        debug(err)
-        return
-    }
-    debug("read raw")
-    if int64(len(raw)) != srcInfo.Size() {
-        err = fmt.Errorf("Wrong number (%d) of bytes read from %s (%d expected)", len(raw), d.Name(), srcInfo.Size())
-        return
-    }
-    debug("correct bytes read")
-    writeErr := os.WriteFile(target.ArchiveFile, raw, 0664)
-    if writeErr != nil {
-        err = fmt.Errorf("Error trying to write %s: %w", target.ArchiveFile, writeErr)
 
-        delErr := os.Remove(target.ArchiveFile)
-        if delErr != nil {
-            err = fmt.Errorf("%w. Also failed to delete partial file: %w", err, delErr)
-        }
-        debug(err)
+    debug("made target/src dir", target.ArchivePath)
+
+    //copy from mounted filesystem into archive
+    raw, readErr := readData(mountPoint+"/"+p, target.Info.Size())
+    if readErr != nil {
+        err = readErr
+        return
+    }
+    debug("correct number of bytes read")
+
+    writeErr := writeData(raw, target.ArchiveFile)
+    if writeErr != nil {
+        err = writeErr
         return
     }
     debug("wrote file")
 
-    //create human-friendly directory
-    //this should be part of the above function that makes the archive dir
-    sortDirErr := os.MkdirAll(target.SortPath, 0775)
-    if archDirErr != nil {
-        err = fmt.Errorf("Error creating sorting directory %s: %w", target.SortPath, sortDirErr)
-        return
-    }
-    debug("made sort dir:", target.SortPath)
-
     //hardlink archive to human-friendly
     linkErr := os.Link(target.ArchiveFile, target.SortFile)
     if linkErr != nil {
-        err = fmt.Errorf("Error making hardlink (%s) copy of (%s): %w", target.SortFile, target.ArchiveFile)
+        err = fmt.Errorf("Error making hardlink (%s) copy of (%s): %w", target.SortFile, target.ArchiveFile, linkErr)
         return
     }
     debug("made hardlink", target.SortFile)
-    //force file+dirs to be owned by the dir root owner
-    chOwnErr := os.Chown(target.ArchiveFile, photosUid, photosGid)
-    if chOwnErr != nil {
-        err = fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d)", target.ArchiveFile, photosUid, photosGid)
-        return
-    }
-    debug("changed owner")
 
     //force atime/mtime/ctime to be `mtime.Unix()` in syscall.Utime
-    timeErr := syscall.Utime(target.ArchiveFile, &syscall.Utimbuf{Actime: srcInfo.ModTime().Unix(), Modtime:srcInfo.ModTime().Unix()})
+    timeErr := os.Chtimes(target.ArchiveFile, target.Info.ModTime(), target.Info.ModTime())
+
     if timeErr != nil {
         err = fmt.Errorf("error setting atime/mtime for copied file (%s) to match source: %w", target.ArchiveFile, timeErr)
         return
@@ -165,4 +128,44 @@ func process(p string, d fs.DirEntry) (err error) {
     debug("set time")
 
     return
+}
+
+func readData(src string, expectedSize int64) (raw []byte, err error) {
+    raw, err = os.ReadFile(src)
+    if err != nil {
+        err = fmt.Errorf("Error trying to read file contents of %s", src, err)
+        return
+    }
+    debug("read raw")
+    readSize := int64(len(raw))
+    if readSize != expectedSize {
+        err = fmt.Errorf("Wrong number of bytes read (%d) from %s (%d expected)", readSize, src, expectedSize)
+        return
+    }
+    return
+}
+
+func writeData(data []byte, target string) (err error) {
+    err = os.WriteFile(target, data, 0664)
+    if err != nil {
+        err = fmt.Errorf("Error trying to write %s: %w", target, err)
+
+        delErr := os.Remove(target)
+        if delErr != nil {
+            err = fmt.Errorf("%w. Also failed to delete partial file: %w", err, delErr)
+        }
+        debug(err)
+        return
+    }
+
+    return
+}
+
+func compareSrcTgt(src, tgt fs.FileInfo) bool {
+    if tgt.Size() == src.Size() && tgt.ModTime() == src.ModTime() {
+        //These are likely the same file
+        return true
+    }
+    debug(fmt.Sprintf("Target file size/mtime (%d/%v)does not match source file (%d/%v), overwriting", tgt.Size(), tgt.ModTime(), src.Size(), src.ModTime()))
+    return false
 }
