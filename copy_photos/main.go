@@ -1,7 +1,9 @@
 package main
+//TODO: flags
+//TODO: report to redis for status readout
+//TODO: image similarity comparison
 //TODO: clean up the process() func
 //TODO: verify nikon fs with that 512 byte zero file
-//TODO: report to redis for status readout
 import (
     "fmt"
     "os"
@@ -37,6 +39,11 @@ func main() {
     }()
 
     photosUid, photosGid, err = getIds(photosDir)
+    if err != nil {
+        fmt.Printf("Error getting uid/gid of target root dir: %v", err)
+        rc=1
+        return
+    }
     debug("user ids of target dir:", photosUid, photosGid)
 
     mountPoint = mountPointName()
@@ -59,7 +66,7 @@ func main() {
     }()
 
     if err != nil {
-        fmt.Printf("Error reading target dir (%s) info: %w", photosDir, err)
+        fmt.Printf("Error reading target dir (%s) info: %v", photosDir, err)
         rc=1
         return
     }

@@ -54,7 +54,7 @@ func setPermissions(path string, d fs.DirEntry, err error) (error) {
 
     chmodErr := os.Chmod(path, bitMode)
     if chmodErr != nil {
-        return fmt.Errorf("Error setting permissions on %s to %v: %w", path, bitMode, chmodErr)
+        return fmt.Errorf("Error setting permissions on %s to %v: %v", path, bitMode, chmodErr)
     }
     debug("set permissions")
 
@@ -65,7 +65,7 @@ func process(p string, d fs.DirEntry) (err error) {
     var target TargetFile
     srcErr := target.Generate(d)
     if srcErr != nil {
-        err = fmt.Errorf("Error generating target paths from source file (%s) info: %w", d.Name(), srcErr)
+        err = fmt.Errorf("Error generating target paths from source file (%s) info: %v", d.Name(), srcErr)
         return
     }
     debug("got src file meta", d.Name())
@@ -113,7 +113,7 @@ func process(p string, d fs.DirEntry) (err error) {
     //hardlink archive to human-friendly
     linkErr := os.Link(target.ArchiveFile, target.SortFile)
     if linkErr != nil {
-        err = fmt.Errorf("Error making hardlink (%s) copy of (%s): %w", target.SortFile, target.ArchiveFile, linkErr)
+        err = fmt.Errorf("Error making hardlink (%s) copy of (%s): %v", target.SortFile, target.ArchiveFile, linkErr)
         return
     }
     debug("made hardlink", target.SortFile)
@@ -122,7 +122,7 @@ func process(p string, d fs.DirEntry) (err error) {
     timeErr := os.Chtimes(target.ArchiveFile, target.Info.ModTime(), target.Info.ModTime())
 
     if timeErr != nil {
-        err = fmt.Errorf("error setting atime/mtime for copied file (%s) to match source: %w", target.ArchiveFile, timeErr)
+        err = fmt.Errorf("error setting atime/mtime for copied file (%s) to match source: %v", target.ArchiveFile, timeErr)
         return
     }
     debug("set time")
@@ -148,11 +148,11 @@ func readData(src string, expectedSize int64) (raw []byte, err error) {
 func writeData(data []byte, target string) (err error) {
     err = os.WriteFile(target, data, 0664)
     if err != nil {
-        err = fmt.Errorf("Error trying to write %s: %w", target, err)
+        err = fmt.Errorf("Error trying to write %s: %v", target, err)
 
         delErr := os.Remove(target)
         if delErr != nil {
-            err = fmt.Errorf("%w. Also failed to delete partial file: %w", err, delErr)
+            err = fmt.Errorf("%v. Also failed to delete partial file: %v", err, delErr)
         }
         debug(err)
         return
