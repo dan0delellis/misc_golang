@@ -23,14 +23,13 @@ var verbose bool
 
 var photosUid int
 var photosGid int
-var mountPoint string
 
 func mountPointName() string {
     return fmt.Sprintf("%s/%s.%x",tempDir,tempPrefix, time.Now().Unix())
 }
 
 func main() {
-    verbose = false
+    verbose = true
     var rc int
     var err error
 
@@ -46,7 +45,7 @@ func main() {
     }
     debug("user ids of target dir:", photosUid, photosGid)
 
-    mountPoint = mountPointName()
+    mountPoint := mountPointName()
 
     fsRoot, err := findAndMountDisk(blkidCache, mountPoint)
     if err != nil {
@@ -71,13 +70,18 @@ func main() {
         return
     }
 
-    err = fs.WalkDir(fsRoot, ".", walkies)
+    var fileQueue []TargetFile
+//    err = fs.WalkDir(fsRoot, ".", walkies)
+    err = fs.WalkDir(fsRoot, ".", func(path string, entry fs.DirEntry, err error) error {return walkies(&fileQueue, path, entry, err)} )
     if err != nil {
         rc = 1
         fmt.Printf("Error traversing filesystem: %v\n", err)
         return
     }
     debug("done walking files")
+    for _, v := range fileQueue {
+        fmt.Println(v.SourceFile, v.ArchiveFile, v.SortFile)
+    }
 
     debug("forcing owner/perms")
     photoDirRoot := os.DirFS(photosDir)
