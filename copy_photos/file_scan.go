@@ -12,8 +12,9 @@ const archiveDir    = ".copy_target"
 const minSize       = 1_000
 
 //operates on a single dir entry, this function is specific to source files on the mounted SD card
-func walkies(path string, d fs.DirEntry, err error) (error) {
+func walkies(queue *[]TargetFile, path string, d fs.DirEntry, err error) (error) {
     debug("working file", path)
+
     if err != nil {
         return fmt.Errorf("error on path:%v", err)
     }
@@ -22,70 +23,52 @@ func walkies(path string, d fs.DirEntry, err error) (error) {
         return nil
     }
 
-    err = process(path,d)
+    var task TargetFile
+    task, err = prepareCopy(path,d)
     if err != nil {
         return fmt.Errorf("error operating on %s: %s\n", path, err)
     }
-    return nil
-}
-
-//This is a walkdir func
-func setPermissions(path string, d fs.DirEntry, err error) (error) {
-    if err != nil {
-        return fmt.Errorf("error setting permissions on path:%v", err)
-    }
-    if ! ( d.Type().IsRegular() || d.IsDir() ) {
+    if task.ArchiveFile == "" {
+        debug("this file does not need to be copied")
         return nil
     }
-    path = photosDir + "/" + path
 
-    chOwnErr := os.Chown(path, photosUid, photosGid)
-    if chOwnErr != nil {
-        return fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d)", path, photosUid, photosGid)
-    }
-    debug("changed owner")
-
-    var bitMode fs.FileMode
-    if d.IsDir() {
-        bitMode = 0775
-    } else {
-        bitMode = 0664
-    }
-
-    chmodErr := os.Chmod(path, bitMode)
-    if chmodErr != nil {
-        return fmt.Errorf("Error setting permissions on %s to %v: %v", path, bitMode, chmodErr)
-    }
-    debug("set permissions")
-
+    task.SourceFile = path
+    *queue = append(*queue, task)
     return nil
 }
 
-func process(p string, d fs.DirEntry) (err error) {
-    var target TargetFile
-    srcErr := target.Generate(d)
+func prepareCopy(p string, d fs.DirEntry) (target TargetFile, err error) {
+    var tgt TargetFile
+    srcErr := tgt.Generate(d)
     if srcErr != nil {
         err = fmt.Errorf("Error generating target paths from source file (%s) info: %v", d.Name(), srcErr)
         return
     }
     debug("got src file meta", d.Name())
-    if target.Info.Size() < minSize {
+    if tgt.Info.Size() < minSize {
         debug("this file is below minsize")
         return
     }
 
     //does the file already exist?
-    archiveFileInfo, eNoEnt := os.Stat(target.ArchiveFile)
+    archiveFileInfo, eNoEnt := os.Stat(tgt.ArchiveFile)
     if eNoEnt == nil {
         //no error means a file is already there
         //is it the same file? check stat of sourcefile
-        if compareSrcTgt(target.Info, archiveFileInfo) {
+        if compareSrcTgt(tgt.Info, archiveFileInfo) {
             return
         }
     }
 
-    debug("target does not exist:", target.ArchiveFile)
+    debug("Destination file ok to (over)write", tgt.ArchiveFile)
 
+    target = tgt
+    return
+}
+
+//This could be made into a function attached to the TargetFile type
+func copyFromDisk(mp string, target TargetFile) (err error) {
     //Dont create directories until we know they are required
     dirErr := target.MakePaths()
     if dirErr != nil {
@@ -96,7 +79,7 @@ func process(p string, d fs.DirEntry) (err error) {
     debug("made target/src dir", target.ArchivePath)
 
     //copy from mounted filesystem into archive
-    raw, readErr := readData(mountPoint+"/"+p, target.Info.Size())
+    raw, readErr := readData(mp+"/"+target.SourceFile, target.Info.Size())
     if readErr != nil {
         err = readErr
         return
@@ -168,4 +151,36 @@ func compareSrcTgt(src, tgt fs.FileInfo) bool {
     }
     debug(fmt.Sprintf("Target file size/mtime (%d/%v)does not match source file (%d/%v), overwriting", tgt.Size(), tgt.ModTime(), src.Size(), src.ModTime()))
     return false
+}
+
+//This is a walkdir func
+func setPermissions(path string, d fs.DirEntry, err error) (error) {
+    if err != nil {
+        return fmt.Errorf("error setting permissions on path:%v", err)
+    }
+    if ! ( d.Type().IsRegular() || d.IsDir() ) {
+        return nil
+    }
+    path = photosDir + "/" + path
+
+    chOwnErr := os.Chown(path, photosUid, photosGid)
+    if chOwnErr != nil {
+        return fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d)", path, photosUid, photosGid)
+    }
+    debug("changed owner")
+
+    var bitMode fs.FileMode
+    if d.IsDir() {
+        bitMode = 0775
+    } else {
+        bitMode = 0664
+    }
+
+    chmodErr := os.Chmod(path, bitMode)
+    if chmodErr != nil {
+        return fmt.Errorf("Error setting permissions on %s to %v: %v", path, bitMode, chmodErr)
+    }
+    debug("set permissions")
+
+    return nil
 }
