@@ -79,8 +79,8 @@ func main() {
         return
     }
     debug("done walking files")
-    for _, v := range fileQueue {
-        fmt.Println(v.SourceFile, v.ArchiveFile, v.SortFile)
+    for k, _ := range fileQueue {
+        fmt.Println(k+1, "of", len(fileQueue))
     }
 
     debug("forcing owner/perms")
