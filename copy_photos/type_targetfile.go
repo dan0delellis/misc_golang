@@ -8,10 +8,12 @@ import (
 
 // A TargetFile struct stores the paths for the initial copy (archive) of a copied photo, and the non-hidden sortable file
 // the sortable file will be a hardlink to the archive file.
+// a more flexible struct would have the Sourcefile and info as named fields, and then a list of generic path/name pairs that would all be hardlinks from the initial copy
 type TargetFile struct {
+    SourceFile  string
+    Info    fs.FileInfo
     ArchivePath, ArchiveFile string
     SortPath, SortFile string
-    Info    fs.FileInfo
 }
 
 func (t *TargetFile) Generate(f fs.DirEntry) ( e error ){
@@ -19,7 +21,7 @@ func (t *TargetFile) Generate(f fs.DirEntry) ( e error ){
     if e != nil {
         return
     }
-    dateDir := t.Info.ModTime().Local().Format(dateDirFormat) + "/"
+    dateDir := t.Info.ModTime().Local().Format(dateDirFormat)
 
     t.ArchivePath = fmt.Sprintf("%s/%s/%s", photosDir, archiveDir, dateDir)
     t.ArchiveFile = fmt.Sprintf("%s/%s", t.ArchivePath, f.Name())
