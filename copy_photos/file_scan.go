@@ -11,9 +11,14 @@ const sortDir       = "sort"
 const archiveDir    = ".copy_target"
 const minSize       = 1_000
 
+func getLinkDirs() []string {
+    return []string{".copy_target", "sort"}
+}
+
 //operates on a single dir entry, this function is specific to source files on the mounted SD card
-func walkies(queue *[]TargetFile, path string, d fs.DirEntry, err error) (error) {
+func findFiles(queue *[]TargetFile, path string, d fs.DirEntry, err error) (error) {
     debug("working file", path)
+    var task TargetFile
 
     if err != nil {
         return fmt.Errorf("error on path:%v", err)
@@ -23,14 +28,28 @@ func walkies(queue *[]TargetFile, path string, d fs.DirEntry, err error) (error)
         return nil
     }
 
-    var task TargetFile
     task, err = prepareCopy(path,d)
+
     if err != nil {
         return fmt.Errorf("error operating on %s: %s\n", path, err)
     }
-    if task.ArchiveFile == "" {
-        debug("this file does not need to be copied")
-        return nil
+
+    switch task.Action {
+        case NoAction:
+            debug(path+" needs no action")
+            return nil
+        case NeedsCopy:
+            debug(path+" will be copied")
+            //continue
+        case NeedsVerify:
+            debug(path+" will be copied, if target file is an incomplete file")
+            //continue
+        case Conflict:
+            debug("target does not appear to be an incomplete copy of "+path)
+            return fmt.Errorf("conflict detected: %s has different contents than %s",task.TargetFile, path)
+        default:
+            debug("i have no idea what do")
+            return fmt.Errorf("unhandled status for copying %s to %s: %d", path, task.TargetFile, task.Action)
     }
 
     task.SourceFile = path
@@ -40,7 +59,7 @@ func walkies(queue *[]TargetFile, path string, d fs.DirEntry, err error) (error)
 
 func prepareCopy(p string, d fs.DirEntry) (target TargetFile, err error) {
     var tgt TargetFile
-    srcErr := tgt.Generate(d)
+    srcErr := tgt.Generate(d, getLinkDirs())
     if srcErr != nil {
         err = fmt.Errorf("Error generating target paths from source file (%s) info: %v", d.Name(), srcErr)
         return
@@ -52,16 +71,15 @@ func prepareCopy(p string, d fs.DirEntry) (target TargetFile, err error) {
     }
 
     //does the file already exist?
-    archiveFileInfo, eNoEnt := os.Stat(tgt.ArchiveFile)
-    if eNoEnt == nil {
+    fileInfo, eNoEnt := os.Stat(tgt.TargetFile)
+    if eNoEnt != nil {
+        tgt.Action = NeedsCopy
+    } else {
         //no error means a file is already there
-        //is it the same file? check stat of sourcefile
-        if compareSrcTgt(tgt.Info, archiveFileInfo) {
-            return
-        }
+        tgt.Action = compareSrcTgt(tgt.Info, fileInfo)
     }
 
-    debug("Destination file ok to (over)write", tgt.ArchiveFile)
+    debug("Destination file ok to (over)write", tgt.TargetFile)
 
     target = tgt
     return
@@ -103,7 +121,6 @@ func copyFromDisk(mp string, target TargetFile) (err error) {
 
     //force atime/mtime/ctime to be `mtime.Unix()` in syscall.Utime
     timeErr := os.Chtimes(target.ArchiveFile, target.Info.ModTime(), target.Info.ModTime())
-
     if timeErr != nil {
         err = fmt.Errorf("error setting atime/mtime for copied file (%s) to match source: %v", target.ArchiveFile, timeErr)
         return
@@ -144,37 +161,26 @@ func writeData(data []byte, target string) (err error) {
     return
 }
 
-func compareSrcTgt(src, tgt fs.FileInfo) bool {
+func compareSrcTgt(src, tgt fs.FileInfo) int {
+    if tgt.Size() <= src.Size() {
+        //This may have been an incomplete filecopy
+        return NeedsVerify
+    }
     if tgt.Size() == src.Size() && tgt.ModTime() == src.ModTime() {
         //These are likely the same file
-        return true
+        return NoAction
     }
-    debug(fmt.Sprintf("Target file size/mtime (%d/%v)does not match source file (%d/%v), overwriting", tgt.Size(), tgt.ModTime(), src.Size(), src.ModTime()))
-    return false
+
+    //some kind of conflict
+    return Conflict
 }
 
-//This is a walkdir func
-func setPermissions(path string, d fs.DirEntry, err error) (error) {
-    if err != nil {
-        return fmt.Errorf("error setting permissions on path:%v", err)
-    }
-    if ! ( d.Type().IsRegular() || d.IsDir() ) {
-        return nil
-    }
-    path = photosDir + "/" + path
-
-    chOwnErr := os.Chown(path, photosUid, photosGid)
+func setPermissions(path string, uid, gid int, bitMode fs.FileMode) (error) {
+    chOwnErr := os.Chown(path, uid, gid)
     if chOwnErr != nil {
-        return fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d)", path, photosUid, photosGid)
+        return fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d)", path, uid, gid)
     }
     debug("changed owner")
-
-    var bitMode fs.FileMode
-    if d.IsDir() {
-        bitMode = 0775
-    } else {
-        bitMode = 0664
-    }
 
     chmodErr := os.Chmod(path, bitMode)
     if chmodErr != nil {
