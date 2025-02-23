@@ -17,12 +17,7 @@ const tempDir = "temp"
 const tempPrefix = "camera_sd"
 const blkidCache = "/run/blkid/blkid.tab"
 
-const dateDirFormat = "20060102"
-
 var verbose bool
-
-var photosUid int
-var photosGid int
 
 func mountPointName() string {
     return fmt.Sprintf("%s/%s.%x",tempDir,tempPrefix, time.Now().Unix())
@@ -36,6 +31,8 @@ func main() {
     defer func() {
         os.Exit(rc)
     }()
+
+    var photosUid, photosGid int
 
     photosUid, photosGid, err = getIds(photosDir)
     if err != nil {
@@ -71,22 +68,48 @@ func main() {
     }
 
     var fileQueue []TargetFile
-//    err = fs.WalkDir(fsRoot, ".", walkies)
-    err = fs.WalkDir(fsRoot, ".", func(path string, entry fs.DirEntry, err error) error {return walkies(&fileQueue, path, entry, err)} )
+
+    err = fs.WalkDir(fsRoot, ".", func(path string, entry fs.DirEntry, err error) error {
+        return findFiles(&fileQueue, path, entry, err)
+    })
+
     if err != nil {
         rc = 1
         fmt.Printf("Error traversing filesystem: %v\n", err)
         return
     }
-    debug("done walking files")
-    for k, _ := range fileQueue {
+
+    debug(fmt.Sprintf("found %d files", len(fileQueue)))
+    for k, v := range fileQueue {
         fmt.Println(k+1, "of", len(fileQueue))
+        err = v.CopyFromDisk(mountPoint)
+        if err != nil {
+            fmt.Println(err)
+            rc=1
+            return
+        }
     }
 
     debug("forcing owner/perms")
     photoDirRoot := os.DirFS(photosDir)
 
-    err = fs.WalkDir(photoDirRoot, ".", setPermissions)
+    err = fs.WalkDir(photoDirRoot, ".", func(path string, d fs.DirEntry, e error) error {
+        if e != nil {
+            return fmt.Errorf("encountered error setting permissions: %v", e)
+        }
+        if ! ( d.Type().IsRegular() || d.IsDir() ) {
+            return nil
+        }
+        var bitMode fs.FileMode
+        if d.IsDir() {
+            bitMode = 0775
+        } else {
+            bitMode = 0664
+        }
+
+        return setPermissions(photosDir + "/" + path, photosUid, photosGid, bitMode)
+    })
+
     if err != nil {
         fmt.Printf("Error forcing owner/perms of content: %v\n", err)
         rc = 1
