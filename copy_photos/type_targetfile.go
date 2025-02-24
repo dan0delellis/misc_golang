@@ -21,7 +21,7 @@ const (
 // a more flexible struct would have the Sourcefile and info as named fields, and then a list of generic path/name pairs that would all be hardlinks from the initial copy
 type TargetFile struct {
     SourceFile  string
-    Info    fs.FileInfo
+    SourceInfo  fs.FileInfo
 
     TargetFile  string
     TargetStat  fs.FileInfo
@@ -44,14 +44,14 @@ func (t *TargetFile) Generate(f fs.DirEntry, linkDirs []string) ( e error ) {
         e = fmt.Errorf("No copy targets specified")
         return
     }
-    t.Info, e = f.Info()
+    t.SourceInfo, e = f.Info()
     if e != nil {
         return
     }
 
     t.Links = make([]FileWithDirPath, len(linkDirs))
 
-    dateDir := t.Info.ModTime().Local().Format(dateDirFormat)
+    dateDir := t.SourceInfo.ModTime().Local().Format(dateDirFormat)
     for i, v := range linkDirs {
         t.Links[i].Path = photosDir + "/" +  v + "/" + dateDir
         t.Links[i].File = t.Links[i].Path + "/" + f.Name()
@@ -73,49 +73,67 @@ func (t *TargetFile) Generate(f fs.DirEntry, linkDirs []string) ( e error ) {
     return
 }
 
-func (target *TargetFile) CopyFromDisk(mp string) (error) {
-    dirErr := target.MakePaths()
-    if dirErr != nil {
-        return fmt.Errorf("Failed creating target path: %v", dirErr)
+func (target *TargetFile) CopyFromDisk(mp string) (err error) {
+    debug("copying file from/to", target.SourceFile, target.TargetFile)
+    err = target.MakePaths()
+    if err != nil {
+        err = fmt.Errorf("Failed creating target path: %v", err)
+        return
     }
 
-    raw, readErr := readData(mp+"/"+target.SourceFile, target.Info.Size())
-    if readErr != nil {
-        return  fmt.Errorf("Failed reading source file: %v", readErr)
+    var rawData []byte
+    rawData, err = readData(mp+"/"+target.SourceFile, target.SourceInfo.Size())
+    if err != nil {
+        err = fmt.Errorf("Failed reading source file: %v", err)
+        return
     }
 
-    debug("correct number of bytes read")
+    debug("correct number of bytes read:", target.SourceInfo.Size())
+
     if target.Action == NeedsVerify {
-        ext, verErr := readData( target.TargetFile, target.TargetStat.Size() )
-        if verErr != nil {
-            return fmt.Errorf("failed verifying target file: %v", verErr)
+        var extantData []byte
+
+        debug(fmt.Sprintf("size type is %T", target.TargetStat.Size()))
+        debug("need to compare target file contents")
+        extantData, err = readData( target.TargetFile, target.TargetStat.Size() )
+        debug("havent checked error yet")
+        if err != nil {
+            err = fmt.Errorf("failed verifying target file: %v", err)
+            return
         }
-        if ( compareByteSlices( ext, raw[ :len(ext) ] ) ) {
+        debug("read extant data for target,size:", target.SourceInfo.Size())
+
+        if ( compareByteSlices( extantData, rawData[ :len(extantData) ] ) ) {
+            debug("tgt is an incomplete copy of src", target.TargetFile, target.SourceFile)
             //target file is bytewise identical to source, but incomplete
             target.Action = NeedsCopy
         } else {
             //target file has some byte value that the source does not
+            debug("tgt contains data that src does not")
             target.Action = Conflict
-            return fmt.Errorf("conflict on copying file %s to %s", target.SourceFile, target.TargetFile)
+            err = fmt.Errorf("conflict on copying file %s to %s", target.SourceFile, target.TargetFile)
+            return
         }
     }
 
     if target.Action != NeedsCopy {
-        return fmt.Errorf("file %s somehow got to an uncreachable code path while processing copy tasks")
+        err = fmt.Errorf("file %s somehow got to an uncreachable code path while processing copy tasks", target.SourceFile)
+        return
     }
-    writeErr := writeData(raw, target.TargetFile)
-    if writeErr != nil {
-        return writeErr
+    err = writeData(rawData, target.TargetFile)
+    if err != nil {
+        return
     }
-    debug("wrote file")
+    debug("wrote file ", target.TargetFile)
 
     //force atime/mtime/ctime to be `mtime.Unix()` in syscall.Utime
-    timeErr := os.Chtimes(target.TargetFile, target.Info.ModTime(), target.Info.ModTime())
-    if timeErr != nil {
-        return fmt.Errorf("error setting atime/mtime for copied file (%s) to match source: %v", target.TargetFile, timeErr)
+    err = os.Chtimes(target.TargetFile, target.SourceInfo.ModTime(), target.SourceInfo.ModTime())
+    if err != nil {
+        err = fmt.Errorf("error setting atime/mtime for copied file (%s) to match source: %v", target.TargetFile, err)
+        return
     }
     debug("set time")
-    return nil
+    return
 }
 
 //This should create the dir paths for ArchivePath and SortPath
@@ -144,6 +162,7 @@ func compareByteSlices(a, b []byte) (status bool) {
     }
     for k, v := range a {
         if v != b[k] {
+            debug("differing value found at byte ", k)
             return
         }
     }
