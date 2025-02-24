@@ -40,7 +40,7 @@ func main() {
         rc=1
         return
     }
-    debug("user ids of target dir:", photosUid, photosGid)
+    debug("user/group ids of target dir:", photosUid, photosGid)
 
     mountPoint := mountPointName()
 
