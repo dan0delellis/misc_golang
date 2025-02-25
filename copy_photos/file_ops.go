@@ -86,51 +86,6 @@ func prepareCopy(p string, d fs.DirEntry) (target TargetFile, err error) {
     return
 }
 
-//This could be made into a function attached to the TargetFile type
-func copyFromDisk(mp string, target TargetFile) (err error) {
-    //Dont create directories until we know they are required
-    dirErr := target.MakePaths()
-    if dirErr != nil {
-        err = dirErr
-        return
-    }
-
-    debug("made target/src dir", target.ArchivePath)
-
-    //copy from mounted filesystem into archive
-    raw, readErr := readData(mp+"/"+target.SourceFile, target.SourceInfo.Size())
-    if readErr != nil {
-        err = readErr
-        return
-    }
-    debug("correct number of bytes read:", target.SourceInfo.Size())
-
-    writeErr := writeData(raw, target.ArchiveFile)
-    if writeErr != nil {
-        err = writeErr
-        return
-    }
-    debug("wrote file ", target.TargetFile)
-
-    //hardlink archive to human-friendly
-    linkErr := os.Link(target.ArchiveFile, target.SortFile)
-    if linkErr != nil {
-        err = fmt.Errorf("Error making hardlink (%s) copy of (%s): %v", target.SortFile, target.ArchiveFile, linkErr)
-        return
-    }
-    debug("made hardlink", target.SortFile)
-
-    //force atime/mtime/ctime to be `mtime.Unix()` in syscall.Utime
-    timeErr := os.Chtimes(target.ArchiveFile, target.SourceInfo.ModTime(), target.SourceInfo.ModTime())
-    if timeErr != nil {
-        err = fmt.Errorf("error setting atime/mtime for copied file (%s) to match source: %v", target.ArchiveFile, timeErr)
-        return
-    }
-    debug("set time")
-
-    return
-}
-
 func readData(src string, expectedSize int64) (raw []byte, err error) {
     debug("reading file", src)
     raw, err = os.ReadFile(src)
