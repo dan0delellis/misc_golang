@@ -11,13 +11,7 @@ import (
 
 const fsTypeKey = "type"
 const mountMode = "ro"
-
 const fsLabelKey = "label"
-const partLabel = "nikon"
-
-func fsTypes() ([]string) {
-    return []string{"exfat", "fat32"}
-}
 
 func getDiskPath(p string, fstypes, labels []string) (diskId, diskFS string, err error) {
     devs, err := os.Open(p)
@@ -46,8 +40,8 @@ func getDiskPath(p string, fstypes, labels []string) (diskId, diskFS string, err
     return
 }
 
-func findAndMountDisk(cache, mountPoint string) (targetFS fs.FS, err error) {
-    targetDisk, fsType, err := getDiskPath(blkidCache)
+func findAndMountDisk(cache, mountPoint string, fstypes, labels []string) (targetFS fs.FS, err error) {
+    targetDisk, fsType, err := getDiskPath(cache, fstypes, labels)
     if err != nil {
         err = fmt.Errorf("Unable to locate applicable disk: %v", err)
         return
@@ -81,7 +75,7 @@ func validateAttrs(n *html.Node, fstypes, labels []string) (ok bool, fs string) 
 
         for _, v := range n.Parent.Attr {
             if v.Key == fsLabelKey {
-                for _, label := range labels
+                for _, label := range labels {
                     if strings.HasPrefix(strings.ToLower(v.Val), label) {
                         hasCorrectLabel = true
                     }
