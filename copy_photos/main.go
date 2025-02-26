@@ -13,9 +13,6 @@ import (
     "syscall"
 )
 
-//const tempDir = "temp"
-//const tempPrefix = "camera_sd"
-const blkidCache = "/run/blkid/blkid.tab"
 var verbose bool
 
 func mountPointName(tempDir, tempPrefix string) string {
@@ -30,7 +27,7 @@ func main() {
         os.Exit(rc)
     }()
     var opts Opts
-    opts, err = parseOpts()
+    opts, err = parseFlags()
     if err != nil {
         fmt.Println(err)
         rc=1
@@ -66,12 +63,6 @@ func main() {
         }
         debug("umonted disk")
     }()
-
-    if err != nil {
-        fmt.Printf("Error reading target dir (%s) info: %v", photosDir, err)
-        rc=1
-        return
-    }
 
     var fileQueue []TargetFile
 

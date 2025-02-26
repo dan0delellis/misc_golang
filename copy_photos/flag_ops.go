@@ -12,15 +12,15 @@ type Opts struct {
     FsTypes     []string `short:"T" long:"fstypes" description:"filesystem type to examine; call multiple times for multiple types" default:"exfat,fat32"`
     FsLabels    []string `short:"l" long:"fslabels" description:"filesystem labels to examine, not case-sensitive" default:"nikon"`
 
-    RootPaths   []string `short:"r" long:"rootdir" description:"root of directory path, relative to CWD, to copy files into. call multiple times to define multiple targets" default: ""`
-    TargetDirs  []string `short:"d" long:"dirname" description: "sub directory under each 'rootdir' to create date-formatted directory names. call multiple times for multiple dirs. multiple dirs in the same filesystem will be hardlinked rather than copied" default: "."`
+    RootPath    string   `short:"r" long:"rootdir" description:"root of directory path, relative to CWD, to copy files into." default: "photos"`
+    TargetDirs  []string `short:"d" long:"dirname" description: "path, relative to 'rootdir', to create date-formatted directory names. call multiple times to create hardlink clones of the initial directory" default: "."`
     DirFormat   string   `short:"f" long:"dirformat" description:"go-date formatted string for target directory names to move files to" default:"20060102"`
 
     MinSize     int      `short:"s" long:"minsize" description:"minimum filesize, in bytes, to be included in the file copy list" default: 1000`
     Verbose     bool     `short:"v" long:"verbose" description:"print ops while processing"`
 }
 
-func parseflags() (o Opts, err error) {
+func parseFlags() (o Opts, err error) {
     _, err = flags.Parse(&o)
     return
 }
