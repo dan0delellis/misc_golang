@@ -13,24 +13,30 @@ import (
     "syscall"
 )
 
-const tempDir = "temp"
-const tempPrefix = "camera_sd"
+//const tempDir = "temp"
+//const tempPrefix = "camera_sd"
 const blkidCache = "/run/blkid/blkid.tab"
-
 var verbose bool
 
-func mountPointName() string {
+func mountPointName(tempDir, tempPrefix string) string {
     return fmt.Sprintf("%s/%s.%x",tempDir,tempPrefix, time.Now().Unix())
 }
 
 func main() {
-    verbose = true
     var rc int
     var err error
 
     defer func() {
         os.Exit(rc)
     }()
+    var opts Opts
+    opts, err = parseOpts()
+    if err != nil {
+        fmt.Println(err)
+        rc=1
+        return
+    }
+    verbose = opts.Verbose
 
     var photosUid, photosGid int
 
@@ -42,9 +48,9 @@ func main() {
     }
     debug("user/group ids of target dir:", photosUid, photosGid)
 
-    mountPoint := mountPointName()
+    mountPoint := mountPointName(opts.TempDir, opts.TempPrefix)
 
-    fsRoot, err := findAndMountDisk(blkidCache, mountPoint)
+    fsRoot, err := findAndMountDisk(opts.BlkidCache, mountPoint, opts.FsTypes, opts.FsLabels)
     if err != nil {
         fmt.Printf("Error finding or mounting an applicable block device: %v\n", err)
         rc = 1

@@ -19,7 +19,7 @@ func fsTypes() ([]string) {
     return []string{"exfat", "fat32"}
 }
 
-func getDiskPath(p string) (diskId, diskFS string, err error) {
+func getDiskPath(p string, fstypes, labels []string) (diskId, diskFS string, err error) {
     devs, err := os.Open(p)
     defer devs.Close()
 
@@ -35,7 +35,7 @@ func getDiskPath(p string) (diskId, diskFS string, err error) {
     }
 
     for n := range data.Descendants() {
-        ok, fs := validateAttrs(n); if ok {
+        ok, fs := validateAttrs(n, fstypes, labels); if ok {
             diskId = n.Data
             diskFS = fs
         }
@@ -75,18 +75,20 @@ func findAndMountDisk(cache, mountPoint string) (targetFS fs.FS, err error) {
     return
 }
 
-func validateAttrs(n *html.Node) (ok bool, fs string) {
+func validateAttrs(n *html.Node, fstypes, labels []string) (ok bool, fs string) {
     if n.Type == html.TextNode && len(n.Parent.Attr) > 0 {
         var hasCorrectLabel, hasCorrectFS bool
 
         for _, v := range n.Parent.Attr {
             if v.Key == fsLabelKey {
-                if strings.HasPrefix(strings.ToLower(v.Val), partLabel) {
-                    hasCorrectLabel = true
+                for _, label := range labels
+                    if strings.HasPrefix(strings.ToLower(v.Val), label) {
+                        hasCorrectLabel = true
+                    }
                 }
             }
             if v.Key == fsTypeKey {
-                if slices.Contains(fsTypes(), v.Val) {
+                if slices.Contains(fstypes, v.Val) {
                     hasCorrectFS = true
                     fs = v.Val
                 }
