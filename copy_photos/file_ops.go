@@ -6,7 +6,6 @@ import (
     "os"
 )
 
-const photosDir     = "horkhorkhork"
 const sortDir       = "sort"
 const archiveDir    = ".copy_target"
 const minSize       = 1_000
@@ -16,8 +15,8 @@ func getLinkDirs() []string {
 }
 
 //operates on a single dir entry, this function is specific to source files on the mounted SD card
-func findFiles(queue *[]TargetFile, path string, d fs.DirEntry, err error) (error) {
-    debug("working file:", path)
+func findFiles(queue *[]TargetFile, rootPath, thisPath string, d fs.DirEntry, err error) (error) {
+    debug("working file:", thisPath)
     var task TargetFile
 
     if err != nil {
@@ -28,38 +27,38 @@ func findFiles(queue *[]TargetFile, path string, d fs.DirEntry, err error) (erro
         return nil
     }
 
-    task, err = prepareCopy(path,d)
+    task, err = prepareCopy(rootPath,thisPath,d)
 
     if err != nil {
-        return fmt.Errorf("error operating on %s: %s\n", path, err)
+        return fmt.Errorf("error operating on %s: %s\n", thisPath, err)
     }
 
     switch task.Action {
         case NoAction:
-            debug(path+" needs no action")
+            debug(thisPath+" needs no action")
             return nil
         case NeedsCopy:
-            debug(path+" will be copied")
+            debug(thisPath+" will be copied")
             //continue
         case NeedsVerify:
-            debug(path+" will be copied, if target file is an incomplete copy")
+            debug(thisPath+" will be copied, if target file is an incomplete copy")
             //continue
         case Conflict:
-            debug("target does not appear to be an incomplete copy of "+path)
-            return fmt.Errorf("conflict detected: %s has different contents than %s",task.TargetFile, path)
+            debug("target does not appear to be an incomplete copy of "+thisPath)
+            return fmt.Errorf("conflict detected: %s has different contents than %s",task.TargetFile, thisPath)
         default:
-            debug("i have no idea what do with:", path, task.TargetFile)
-            return fmt.Errorf("unhandled status for copying %s to %s: %d", path, task.TargetFile, task.Action)
+            debug("i have no idea what do with:",thisPath, task.TargetFile)
+            return fmt.Errorf("unhandled status for copying %s to %s: %d", thisPath, task.TargetFile, task.Action)
     }
 
-    task.SourceFile = path
+    task.SourceFile = thisPath
     *queue = append(*queue, task)
     return nil
 }
 
-func prepareCopy(p string, d fs.DirEntry) (target TargetFile, err error) {
+func prepareCopy(rootPath, thisPath string, d fs.DirEntry) (target TargetFile, err error) {
     var tgt TargetFile
-    srcErr := tgt.Generate(d, getLinkDirs())
+    srcErr := tgt.Generate(rootPath, d, getLinkDirs())
     if srcErr != nil {
         err = fmt.Errorf("Error generating target paths from source file (%s) info: %v", d.Name(), srcErr)
         return
