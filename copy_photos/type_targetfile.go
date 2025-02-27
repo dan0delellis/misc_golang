@@ -39,7 +39,7 @@ type FileWithDirPath struct {
     File    string
 }
 
-func (t *TargetFile) Generate(f fs.DirEntry, linkDirs []string) ( e error ) {
+func (t *TargetFile) Generate(rootPath string, f fs.DirEntry, linkDirs []string) ( e error ) {
     if len(linkDirs) < 1 {
         e = fmt.Errorf("No copy targets specified")
         return
@@ -53,7 +53,7 @@ func (t *TargetFile) Generate(f fs.DirEntry, linkDirs []string) ( e error ) {
 
     dateDir := t.SourceInfo.ModTime().Local().Format(dateDirFormat)
     for i, v := range linkDirs {
-        t.Links[i].Path = photosDir + "/" +  v + "/" + dateDir
+        t.Links[i].Path = rootPath + "/" +  v + "/" + dateDir
         t.Links[i].File = t.Links[i].Path + "/" + f.Name()
     }
 
@@ -64,10 +64,10 @@ func (t *TargetFile) Generate(f fs.DirEntry, linkDirs []string) ( e error ) {
         t.Links = nil
     }
 
-    t.ArchivePath = fmt.Sprintf("%s/%s/%s", photosDir, archiveDir, dateDir)
+    t.ArchivePath = fmt.Sprintf("%s/%s/%s", rootPath, archiveDir, dateDir)
     t.ArchiveFile = fmt.Sprintf("%s/%s", t.ArchivePath, f.Name())
 
-    t.SortPath    = fmt.Sprintf("%s/%s/%s", photosDir, sortDir, dateDir)
+    t.SortPath    = fmt.Sprintf("%s/%s/%s", rootPath, sortDir, dateDir)
     t.SortFile    = fmt.Sprintf("%s/%s", t.SortPath, f.Name())
 
     return
