@@ -1,8 +1,8 @@
 package main
-//TODO: flags
+//TODO: set user/group ids from flag values
+//TODO: examine specific devs from flag
 //TODO: report to redis for status readout
 //TODO: image similarity comparison
-//TODO: clean up the process() func
 //TODO: verify nikon fs with that 512 byte zero file
 import (
     "fmt"
