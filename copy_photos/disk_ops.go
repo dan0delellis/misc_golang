@@ -69,29 +69,45 @@ func findAndMountDisk(cache, mountPoint string, fstypes, labels []string) (targe
     return
 }
 
-func validateAttrs(n *html.Node, fstypes, labels []string) (ok bool, fs string) {
+func validateAttrs(n *html.Node, fstypes, prefixes []string) (ok bool, fs string) {
     if n.Type == html.TextNode && len(n.Parent.Attr) > 0 {
         var hasCorrectLabel, hasCorrectFS bool
 
+        debug(fmt.Sprintf("examining attributes for %s", n.Data))
         for _, v := range n.Parent.Attr {
+            debug(fmt.Sprintf("comparing attr %s to %s", v.Key, fsLabelKey))
             if v.Key == fsLabelKey {
-                for _, label := range labels {
-                    if strings.HasPrefix(strings.ToLower(v.Val), label) {
-                        hasCorrectLabel = true
-                    }
-                }
+                hasCorrectLabel = findLabelWithPrefix(prefixes, v.Val)
             }
+
             if v.Key == fsTypeKey {
-                if slices.Contains(fstypes, v.Val) {
-                    hasCorrectFS = true
-                    fs = v.Val
-                }
+                hasCorrectFS, fs = findFsType(fstypes, v.Val)
             }
+            debug("found fs with expected label:", hasCorrectLabel, "; found fs with expected type:", hasCorrectFS)
             if hasCorrectLabel && hasCorrectFS && fs != "" {
                 ok = true
             }
         }
+        debug(fmt.Sprintf("done with  %s", n.Data))
     }
 
     return
+}
+
+func findFsType(fstypes []string, fs string) (bool, string) {
+    if slices.Contains(fstypes, fs) {
+        return true, fs
+    }
+
+    return false, ""
+}
+
+func findLabelWithPrefix(prefixes []string, label string) bool {
+    for _, prefix := range prefixes {
+        debug(fmt.Sprintf("is %s a prefix to '%s'", prefix, label))
+        if strings.HasPrefix(strings.ToLower(label), prefix) {
+            return true
+        }
+    }
+    return false
 }
