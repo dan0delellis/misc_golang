@@ -37,7 +37,7 @@ func main() {
 
     var photosUid, photosGid int
 
-    photosUid, photosGid, err = getIds(photosDir)
+    photosUid, photosGid, err = getIds(opts.RootPath)
     if err != nil {
         fmt.Printf("Error getting uid/gid of target root dir: %v", err)
         rc=1
@@ -67,7 +67,7 @@ func main() {
     var fileQueue []TargetFile
 
     err = fs.WalkDir(fsRoot, ".", func(path string, entry fs.DirEntry, err error) error {
-        return findFiles(&fileQueue, path, entry, err)
+        return findFiles(&fileQueue, opts.RootPath, path, entry, err)
     })
 
     if err != nil {
@@ -88,7 +88,7 @@ func main() {
     }
 
     debug("forcing owner/perms")
-    photoDirRoot := os.DirFS(photosDir)
+    photoDirRoot := os.DirFS(opts.RootPath)
 
     err = fs.WalkDir(photoDirRoot, ".", func(path string, d fs.DirEntry, e error) error {
         if e != nil {
@@ -104,7 +104,7 @@ func main() {
             bitMode = 0664
         }
 
-        return setPermissions(photosDir + "/" + path, photosUid, photosGid, bitMode)
+        return setPermissions(opts.RootPath + "/" + path, photosUid, photosGid, bitMode)
     })
 
     if err != nil {
