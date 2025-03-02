@@ -1,9 +1,6 @@
 package main
-//TODO: set user/group ids from flag values
-//TODO: examine specific devs from flag
 //TODO: report to redis for status readout
 //TODO: image similarity comparison
-//TODO: verify nikon fs with that 512 byte zero file
 import (
     "fmt"
     "os"
@@ -15,8 +12,8 @@ import (
 
 var verbose bool
 
-func mountPointName(tempDir, tempPrefix string) string {
-    return fmt.Sprintf("%s/%s.%x",tempDir,tempPrefix, time.Now().Unix())
+func mountPointName(opts *Opts) string {
+    return fmt.Sprintf("%s/%s.%x",opts.TempDir, opts.TempPrefix, time.Now().Unix())
 }
 
 func main() {
@@ -37,7 +34,7 @@ func main() {
 
     var photosUid, photosGid int
 
-    photosUid, photosGid, err = getIds(opts.RootPath)
+    photosUid, photosGid, err = getIds(&opts)
     if err != nil {
         fmt.Printf("Error getting uid/gid of target root dir: %v", err)
         rc=1
@@ -45,9 +42,9 @@ func main() {
     }
     debug("user/group ids of target dir:", photosUid, photosGid)
 
-    mountPoint := mountPointName(opts.TempDir, opts.TempPrefix)
+    mountPoint := mountPointName(&opts)
 
-    fsRoot, err := findAndMountDisk(opts.BlkidCache, mountPoint, opts.FsTypes, opts.FsLabels)
+    fsRoot, err := findAndMountDisk(&opts, mountPoint)
     if err != nil {
         fmt.Printf("Error finding or mounting an applicable block device: %v\n", err)
         rc = 1
@@ -115,7 +112,13 @@ func main() {
     debug("done")
 }
 
-func getIds(path string) (user, group int, err error) {
+func getIds(opts *Opts) (user, group int, err error) {
+    if opts.UserID > -1 && opts.GroupID > -1 {
+        user = opts.UserID
+        group = opts.GroupID
+        return
+    }
+    path := opts.RootPath
     d, err := os.Open(path)
     if err != nil {
         return
@@ -127,8 +130,8 @@ func getIds(path string) (user, group int, err error) {
     fileSys := stat.Sys()
 
     a := fileSys.(*syscall.Stat_t)
-    user = int(a.Uid)
-    group = int(a.Gid)
+    user = max(opts.UserID, int(a.Uid))
+    group = max(opts.GroupID, int(a.Gid))
     return
 }
 
