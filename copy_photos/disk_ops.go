@@ -26,10 +26,13 @@ func findAndMountDisks(opts *Opts, mountDir string) (targetFS fs.FS, mountedDirs
     debug("target disk list", targetDisks)
 
     for _, v := range targetDisks {
-        err = v.Mount(mountDir, mountMode, opts)
+        mountLocation := mountDir + v.DevID
+        debugf("mounting %s to %s", v.DevID, mountLocation)
+        err = v.Mount(mountLocation, mountMode, opts)
         if err != nil {
             return
         }
+        mountedDirs = append(mountedDirs, mountLocation)
     }
 
     targetFS = os.DirFS(mountDir)
@@ -125,8 +128,7 @@ func findLabelWithPrefix(prefixes []string, label string) bool {
     return false
 }
 
-func (dev *Dev) Mount(location, mode string, opts *Opts) ( err error ) {
-    mountPoint := location + "/" + dev.DevID
+func (dev *Dev) Mount(mountPoint, mode string, opts *Opts) ( err error ) {
     err = os.MkdirAll(mountPoint, 0755)
     if err != nil {
         err = fmt.Errorf("Unable to create temp dir for mountpoint: %v", err)
