@@ -44,7 +44,7 @@ func main() {
 
     mountPoint := mountPointName(&opts)
 
-    fsRoot, err := findAndMountDisk(&opts, mountPoint)
+    fsRoot, mountedDirs, err := findAndMountDisks(&opts, mountPoint)
     if err != nil {
         fmt.Printf("Error finding or mounting an applicable block device: %v\n", err)
         rc = 1
@@ -52,11 +52,13 @@ func main() {
     }
     debug("found fsroot:", fsRoot)
     defer func() {
-        err = mount.Unmount(mountPoint)
-        if err != nil {
-            fmt.Printf("Error unmounting filesystem: %v\n", err)
-            rc = 1
-            return
+        for _, v := range mountedDirs {
+            err = mount.Unmount(v)
+            if err != nil {
+                fmt.Printf("Error unmounting filesystem: %v\n", err)
+                rc = 1
+                return
+            }
         }
         debug("umonted disk")
     }()
@@ -139,4 +141,16 @@ func debug(a ...any) {
     if verbose {
         fmt.Println(a)
     }
+}
+
+func debugf(s string, a ...any) {
+    debug(fmt.Sprintf(s, a...))
+}
+
+type StatusReport struct {
+    TTL int
+    Detail []string
+
+
+
 }
