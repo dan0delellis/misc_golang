@@ -148,3 +148,18 @@ func setPermissions(path string, uid, gid int, bitMode fs.FileMode) (error) {
 
     return nil
 }
+
+func compareByteSlices(a, b []byte) (status bool) {
+    if len(a) != len(b) {
+        return
+    }
+    for k, v := range a {
+        if v != b[k] {
+            debug("differing value found at byte ", k)
+            return
+        }
+    }
+    status = true
+    return
+}
+
