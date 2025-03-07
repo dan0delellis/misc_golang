@@ -4,11 +4,7 @@ import (
     "fmt"
     "os"
     "github.com/moby/sys/mount"
-
-
 )
-
-
 
 func (dev *Dev) Mount(mountPoint, mode string, opts *Opts) ( err error ) {
     err = os.MkdirAll(mountPoint, 0755)
