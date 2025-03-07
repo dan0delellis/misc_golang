@@ -14,6 +14,10 @@ func main() {
         return
     }
 
+    lcd.demo()
+}
+
+func (lcd Display) demo() {
     lcd.Print("Here")
     time.Sleep(300 * time.Millisecond)
     lcd.Print(" we")
@@ -60,4 +64,5 @@ func main() {
     time.Sleep(time.Second)
     lcd.BrightnessKeyword("off")
     lcd.Clear()
+
 }

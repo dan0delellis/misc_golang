@@ -2,11 +2,14 @@ package main
 import (
     "fmt"
     "time"
+    "regexp"
 )
 
 
 var winderp = []byte{'\r','\n'}
 var twospace = []byte{' ', ' '}
+var singleLineBreak *regexp.Regexp
+var singleLinePattern = `(\r\n?|\n)`
 
 // Printf writes the content to the display, formatted with the provided string and the args Printf expects
 func (d Display) Printf(s string, a ...any) (n int, err error) {

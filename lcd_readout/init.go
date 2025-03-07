@@ -8,7 +8,6 @@ const cols = 16
 const rows = 2
 
 const newlineToCarriage = true
-var singleLineBreak *regexp.Regexp
 
 // InitLCD is a function to open the given path at a standard baud rate
 // It sets the dimensions of the display to prescribed values. Curently 16x2 because that is the device that I have, and also because it's easier to understand what's going on when a 20x4 display is only showing 16x2 characters, than when a 16x2 display is operating on the factory default setting of 20x4
@@ -22,7 +21,7 @@ func InitLCD(path string) (d Display, err error) {
     if newlineToCarriage {
         // single lines: \r, \n, \r\n
         // double lines: \r\r, \n\n, \n\r
-        singleLineBreak = regexp.MustCompile(`(\r\n?|\n)`)
+        singleLineBreak = regexp.MustCompile(singleLinePattern)
     }
     var l serial_lcd.LCD
     l, err = serial_lcd.Open(path, 9600)
