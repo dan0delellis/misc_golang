@@ -25,7 +25,8 @@ func findAndMountDisks(mountDir string) (targetFS fs.FS, mountedDirs []string, e
     debug("target disk list", targetDisks)
 
     for _, v := range targetDisks {
-        mountLocation := mountDir + v.DevID
+        flatDev := strings.Replace(strings.ReplaceAll(v.DevID, "/", "."),".","/", 1)
+        mountLocation := mountDir + flatDev
         debugf("mounting %s to %s", v.DevID, mountLocation)
         err = v.Mount(mountLocation, mountMode)
         if err != nil {
@@ -34,6 +35,7 @@ func findAndMountDisks(mountDir string) (targetFS fs.FS, mountedDirs []string, e
         mountedDirs = append(mountedDirs, mountLocation)
     }
 
+    //TODO: turn this into a list of DirFS to iterate over, to make it easier to replace the mounpoint in the source path
     targetFS = os.DirFS(mountDir)
     return
 }
