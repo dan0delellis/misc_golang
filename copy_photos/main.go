@@ -1,4 +1,5 @@
 package main
+//TODO: search for conflicts within the presented data
 //TODO: search for duplicates mode: calculate the md5 of each file and store it in a hashmap, set the target file's mtime to the OLDEST copy found
 //TODO: report to redis for status readout
 //TODO: image similarity comparison
@@ -9,6 +10,8 @@ import (
     "time"
     "github.com/moby/sys/mount"
     "syscall"
+    "slices"
+    "maps"
 )
 
 var opts Opts
@@ -42,7 +45,8 @@ func main() {
     mountPoint := mountPointName()
     defer func() {
         if !opts.KeepMounts {
-            os.RemoveAll(mountPoint)
+            debugf("deleting %s", mountPoint)
+            //TODO: unmount only if empty
         }
     }()
 
@@ -70,10 +74,10 @@ func main() {
         return
     }
     debug("found fsroot:", fsRoot)
-    var fileQueue []TargetFile
+    fileQueue := make(map[string]TargetFile)
 
     err = fs.WalkDir(fsRoot, ".", func(path string, entry fs.DirEntry, err error) error {
-        return findFiles(&fileQueue, opts.RootPath, path, entry, err)
+        return findFiles(fileQueue, opts.RootPath, path, entry, err)
     })
 
     if err != nil {
@@ -82,9 +86,12 @@ func main() {
         return
     }
 
+    i := 0
     debug(fmt.Sprintf("found %d files", len(fileQueue)))
-    for k, v := range fileQueue {
-        fmt.Println(k+1, "of", len(fileQueue))
+    for _, k := range slices.Sorted(maps.Keys(fileQueue)) {
+        v := fileQueue[k]
+        i += 1
+        fmt.Println(i, "of", len(fileQueue))
         err = v.CopyFromDisk(mountPoint)
         if err != nil {
             fmt.Println(err)
@@ -155,6 +162,7 @@ func debugf(s string, a ...any) {
 }
 
 type StatusReport struct {
-    TTL int
+    TTL time.Duration
     Detail []string
+    Status int
 }
