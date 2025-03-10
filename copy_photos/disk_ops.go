@@ -12,8 +12,8 @@ const fsLabelKey = "label"
 const mountMode = "ro"
 const nikonFile = "NIKON001.DSC"
 
-func findAndMountDisks(opts *Opts, mountDir string) (targetFS fs.FS, mountedDirs []string, err error) {
-    targetDisks, err := getDiskPaths(opts)
+func findAndMountDisks(mountDir string) (targetFS fs.FS, mountedDirs []string, err error) {
+    targetDisks, err := getDiskPaths()
     if err != nil {
         err = fmt.Errorf("Unable to locate applicable disk: %v", err)
         return
@@ -27,7 +27,7 @@ func findAndMountDisks(opts *Opts, mountDir string) (targetFS fs.FS, mountedDirs
     for _, v := range targetDisks {
         mountLocation := mountDir + v.DevID
         debugf("mounting %s to %s", v.DevID, mountLocation)
-        err = v.Mount(mountLocation, mountMode, opts)
+        err = v.Mount(mountLocation, mountMode)
         if err != nil {
             return
         }
@@ -38,7 +38,7 @@ func findAndMountDisks(opts *Opts, mountDir string) (targetFS fs.FS, mountedDirs
     return
 }
 
-func getDiskPaths(opts *Opts) (devIDs []Dev, err error) {
+func getDiskPaths() (devIDs []Dev, err error) {
     if opts.DevIDs == nil {
         //if no devid is specified, it will scan all devids
         opts.DevIDs = []string{""}
@@ -66,14 +66,14 @@ func getDiskPaths(opts *Opts) (devIDs []Dev, err error) {
     }
 
     for n := range data.Descendants() {
-        ok, fs := validateAttrs(n, opts); if ok {
+        ok, fs := validateAttrs(n); if ok {
             devIDs = append(devIDs, Dev{DevID:n.Data, Filesystem:fs})
         }
     }
     return
 }
 
-func validateAttrs(n *html.Node, opts *Opts) (ok bool, fs string) {
+func validateAttrs(n *html.Node) (ok bool, fs string) {
     if n.Type == html.TextNode && len(n.Parent.Attr) > 0 {
         var hasCorrectLabel, hasCorrectFS bool
 

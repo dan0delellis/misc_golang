@@ -6,7 +6,7 @@ import (
     "github.com/moby/sys/mount"
 )
 
-func (dev *Dev) Mount(mountPoint, mode string, opts *Opts) ( err error ) {
+func (dev *Dev) Mount(mountPoint, mode string) ( err error ) {
     err = os.MkdirAll(mountPoint, 0755)
     if err != nil {
         err = fmt.Errorf("Unable to create temp dir for mountpoint: %v", err)
