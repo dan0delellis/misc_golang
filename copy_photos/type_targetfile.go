@@ -6,8 +6,6 @@ import (
     "os"
 )
 
-const dateDirFormat = "20060102"
-
 //Values are defined in increasing amount of work needed
 const (
     NoAction    =   iota    //No action will be taken
@@ -25,10 +23,6 @@ type TargetFile struct {
 
     TargetFile  string
     TargetStat  fs.FileInfo
-
-    //depricate these
-    ArchivePath, ArchiveFile string
-    SortPath, SortFile string
 
     Links   []FileWithDirPath
     Action  int
@@ -51,7 +45,7 @@ func (t *TargetFile) Generate(rootPath string, f fs.DirEntry, linkDirs []string)
 
     t.Links = make([]FileWithDirPath, len(linkDirs))
 
-    dateDir := t.SourceInfo.ModTime().Local().Format(dateDirFormat)
+    dateDir := t.SourceInfo.ModTime().Local().Format(opts.DirFormat)
     for i, v := range linkDirs {
         t.Links[i].Path = rootPath + "/" +  v + "/" + dateDir
         t.Links[i].File = t.Links[i].Path + "/" + f.Name()
@@ -63,12 +57,6 @@ func (t *TargetFile) Generate(rootPath string, f fs.DirEntry, linkDirs []string)
     } else {
         t.Links = nil
     }
-
-    t.ArchivePath = fmt.Sprintf("%s/%s/%s", rootPath, archiveDir, dateDir)
-    t.ArchiveFile = fmt.Sprintf("%s/%s", t.ArchivePath, f.Name())
-
-    t.SortPath    = fmt.Sprintf("%s/%s/%s", rootPath, sortDir, dateDir)
-    t.SortFile    = fmt.Sprintf("%s/%s", t.SortPath, f.Name())
 
     return
 }
@@ -143,14 +131,6 @@ func (t *TargetFile) MakePaths() (error) {
         if dirErr != nil {
             return fmt.Errorf("Error creating directory: %s: %v", entry.Path)
         }
-    }
-    archDirErr := os.MkdirAll(t.ArchivePath, 0775)
-    if archDirErr != nil {
-        return fmt.Errorf("Error creating archive directory %s: %w", t.ArchivePath, archDirErr)
-    }
-    sortDirErr := os.MkdirAll(t.SortPath, 0775)
-    if archDirErr != nil {
-        return fmt.Errorf("Error creating sorting directory %s: %w", t.SortPath, sortDirErr)
     }
     return nil
 }
