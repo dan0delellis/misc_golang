@@ -34,6 +34,7 @@ type FileWithDirPath struct {
 }
 
 func (t *TargetFile) Generate(rootPath string, f fs.DirEntry, linkDirs []string) ( e error ) {
+    debugf("rootpath:%s,sourcefile:%s", rootPath, f.Name())
     if len(linkDirs) < 1 {
         e = fmt.Errorf("No copy targets specified")
         return
