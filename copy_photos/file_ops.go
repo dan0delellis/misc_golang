@@ -15,7 +15,7 @@ func getLinkDirs() []string {
 }
 
 //operates on a single dir entry, this function is specific to source files on the mounted SD card
-func findFiles(queue *[]TargetFile, rootPath, thisPath string, d fs.DirEntry, err error) (error) {
+func findFiles(queue map[string]TargetFile, rootPath, thisPath string, d fs.DirEntry, err error) (error) {
     debug("working file:", thisPath)
     var task TargetFile
 
@@ -28,11 +28,13 @@ func findFiles(queue *[]TargetFile, rootPath, thisPath string, d fs.DirEntry, er
     }
 
     task, err = prepareCopy(rootPath,thisPath,d)
-
     if err != nil {
         return fmt.Errorf("error operating on %s: %s\n", thisPath, err)
     }
 
+    extant, ohNo := queue[task.TargetFile]; if ohNo {
+        return fmt.Errorf("Conflict detected: '%s' and '%s' have the same target file: '%s' ", extant.SourceFile, thisPath, task.TargetFile)
+    }
     switch task.Action {
         case NoAction:
             debug(thisPath+" needs no action")
@@ -52,7 +54,7 @@ func findFiles(queue *[]TargetFile, rootPath, thisPath string, d fs.DirEntry, er
     }
 
     task.SourceFile = thisPath
-    *queue = append(*queue, task)
+    queue[task.TargetFile] = task
     return nil
 }
 
