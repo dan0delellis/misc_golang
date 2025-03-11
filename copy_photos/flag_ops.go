@@ -7,7 +7,7 @@ import (
 type Opts struct {
     DevIDs      []string `short:"d" long:"dev" description:"multiple instances allowed. full device path (ex: '/dev/sdb1') to scan. Overrides fstypes,fslabels options entirely. Will not override nikonfile or nikon flag"`
     RootPath    string   `short:"r" long:"rootdir" description:"root of directory path, relative to CWD, to copy files into." default:"photos"`
-    TargetDirs  []string `short:"t" long:"targetdir" description:"multiple instances allowed. path, relative to 'rootdir', to create date-formatted directory names. call multiple times to create hardlink clones of the initial directory" default:"sorted"`
+    TargetDirs  []string `short:"t" long:"targetdir" description:"multiple instances allowed. path, relative to 'rootdir', to create date-formatted directory names. call multiple times to create hardlink clones of the initial directory"`
     FlatPaths   bool     `short:"F" long:"flattenpth" description:"relative to the filesystem root, prepend the full path of the file to its name in the copy target, replacing '/' with '.'"`
 
     KeepMounts  bool     `long:"keepmounts" description:"don't unmount filesystems on exit or failure"`
@@ -25,7 +25,7 @@ type Opts struct {
 
     UserID      int      `short:"u" long:"uid"  description:"numeric user ID to set ownership of files/dirs. setting both user and group IDs will skip checks for rootdir existing" default:"-1" default-mask:"<UID of current user>"`
     GroupID     int      `short:"g" long:"gid"  description:"numeric group ID to set ownership of files/dirs. setting both user and group IDs will skip checks for rootdir existing" default:"-1" default-mask:"<GID of current user>"`
-    MinSize     int      `long:"minsize" description:"minimum filesize, in bytes, to be included in the file copy list" default:"1000"`
+    MinSize     int64    `long:"minsize" description:"minimum filesize, in bytes, to be included in the file copy list" default:"1000"`
 
     Verbose     bool     `short:"v" long:"verbose" description:"print ops while processing"`
 }
