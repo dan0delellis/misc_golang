@@ -1,7 +1,6 @@
 package main
 import (
     "fmt"
-    "io/fs"
     "os"
     "golang.org/x/net/html"
     "strings"
