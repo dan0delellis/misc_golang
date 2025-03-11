@@ -6,17 +6,10 @@ import (
     "os"
 )
 
-const sortDir       = "sort"
-const archiveDir    = ".copy_target"
-const minSize       = 1_000
-
-func getLinkDirs() []string {
-    return []string{".copy_target", "sort"}
-}
-
 //operates on a single dir entry, this function is specific to source files on the mounted SD card
-func findFiles(queue map[string]TargetFile, rootPath, thisPath string, d fs.DirEntry, err error) (error) {
-    debug("working file:", thisPath)
+func findFiles(queue map[string]TargetFile, rootPath, devDir, thisPath string, d fs.DirEntry, err error) (error) {
+    debugf("rootpath:<%s>, operating file:<%s>", rootPath, thisPath)
+    debugf("%+#v", d)
     var task TargetFile
 
     if err != nil {
@@ -27,7 +20,7 @@ func findFiles(queue map[string]TargetFile, rootPath, thisPath string, d fs.DirE
         return nil
     }
 
-    task, err = prepareCopy(rootPath,thisPath,d)
+    task, err = prepareCopy(rootPath,devDir,thisPath,d)
     if err != nil {
         return fmt.Errorf("error operating on %s: %s\n", thisPath, err)
     }
@@ -58,16 +51,16 @@ func findFiles(queue map[string]TargetFile, rootPath, thisPath string, d fs.DirE
     return nil
 }
 
-func prepareCopy(rootPath, thisPath string, d fs.DirEntry) (target TargetFile, err error) {
+func prepareCopy(rootPath, devDir, thisPath string, d fs.DirEntry) (target TargetFile, err error) {
     var tgt TargetFile
-    srcErr := tgt.Generate(rootPath, d, getLinkDirs())
+    srcErr := tgt.Generate(rootPath, devDir, thisPath, d, opts.TargetDirs)
     if srcErr != nil {
         err = fmt.Errorf("Error generating target paths from source file (%s) info: %v", d.Name(), srcErr)
         return
     }
     debug("got src file meta:", d.Name())
-    if tgt.SourceInfo.Size() < minSize {
-        debug("this file is below minsize", tgt.SourceInfo.Size(), minSize)
+    if tgt.SourceInfo.Size() < opts.MinSize {
+        debug("this file is below minsize", tgt.SourceInfo.Size(), opts.MinSize)
         return
     }
 
@@ -88,10 +81,10 @@ func prepareCopy(rootPath, thisPath string, d fs.DirEntry) (target TargetFile, e
 }
 
 func readData(src string, expectedSize int64) (raw []byte, err error) {
-    debug("reading file", src)
+    debugf("reading file <%s>", src)
     raw, err = os.ReadFile(src)
     if err != nil {
-        err = fmt.Errorf("Error trying to read file contents of %s", src, err)
+        err = fmt.Errorf("Error trying to read file contents of %s: %v", src, err)
         return
     }
     readSize := int64(len(raw))
