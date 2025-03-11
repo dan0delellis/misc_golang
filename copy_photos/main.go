@@ -50,7 +50,8 @@ func main() {
         }
     }()
 
-    _, mountedDirs, err := findAndMountDisks(mountPoint)
+    //TODO: turn this into a struct that can have functions, then you can just do `defer mountedDirs.unmount()` with all this logic hidden away
+    mountedDirs, err := findAndMountDisks(mountPoint)
     defer func() {
         if !opts.KeepMounts {
             for _, v := range mountedDirs {
@@ -89,11 +90,9 @@ func main() {
         }
     }
 
-    i := 0
     debug(fmt.Sprintf("found %d files", len(fileQueue)))
-    for _, k := range slices.Sorted(maps.Keys(fileQueue)) {
+    for i, k := range slices.Sorted(maps.Keys(fileQueue)) {
         v := fileQueue[k]
-        i += 1
         fmt.Println(i, "of", len(fileQueue))
         err = v.CopyFromDisk()
         if err != nil {

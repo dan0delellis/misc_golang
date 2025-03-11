@@ -12,7 +12,7 @@ const fsLabelKey = "label"
 const mountMode = "ro"
 const nikonFile = "NIKON001.DSC"
 
-func findAndMountDisks(mountDir string) (targetFS fs.FS, mountedDirs []string, err error) {
+func findAndMountDisks(mountDir string) (mountedDirs []string, err error) {
     targetDisks, err := getDiskPaths()
     if err != nil {
         err = fmt.Errorf("Unable to locate applicable disk: %v", err)
@@ -34,8 +34,6 @@ func findAndMountDisks(mountDir string) (targetFS fs.FS, mountedDirs []string, e
         mountedDirs = append(mountedDirs, mountLocation)
     }
 
-    //TODO: turn this into a list of DirFS to iterate over, to make it easier to replace the mounpoint in the source path
-    targetFS = os.DirFS(mountDir)
     return
 }
 
