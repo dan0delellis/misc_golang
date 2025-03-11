@@ -4,6 +4,7 @@ import (
     "fmt"
     "io/fs"
     "os"
+    "strings"
 )
 
 //Values are defined in increasing amount of work needed
@@ -18,9 +19,13 @@ const (
 // the sortable file will be a hardlink to the archive file.
 // a more flexible struct would have the Sourcefile and info as named fields, and then a list of generic path/name pairs that would all be hardlinks from the initial copy
 type TargetFile struct {
+    NestRoot    string
+
+    SrcFile     FileWithDirPath
     SourceFile  string
     SourceInfo  fs.FileInfo
 
+    TgtFile     FileWithDirPath
     TargetFile  string
     TargetStat  fs.FileInfo
 
@@ -28,12 +33,16 @@ type TargetFile struct {
     Action  int
 }
 
+func (f *FileWithDirPath) RelPath() string {
+    return f.Path + "/" + f.File
+}
+
 type FileWithDirPath struct {
     Path    string
     File    string
 }
 
-func (t *TargetFile) Generate(rootPath string, f fs.DirEntry, linkDirs []string) ( e error ) {
+func (t *TargetFile) Generate(rootPath, devDir, filePath string, f fs.DirEntry, linkDirs []string) ( e error ) {
     debugf("rootpath:%s,sourcefile:%s", rootPath, f.Name())
     if len(linkDirs) < 1 {
         e = fmt.Errorf("No copy targets specified")
@@ -48,30 +57,35 @@ func (t *TargetFile) Generate(rootPath string, f fs.DirEntry, linkDirs []string)
 
     dateDir := t.SourceInfo.ModTime().Local().Format(opts.DirFormat)
     for i, v := range linkDirs {
+        endName := f.Name()
+        if opts.FlatPaths {
+            endName = strings.ReplaceAll(filePath, "/", ".")
+        }
         t.Links[i].Path = rootPath + "/" +  v + "/" + dateDir
-        t.Links[i].File = t.Links[i].Path + "/" + f.Name()
+        t.Links[i].File = t.Links[i].Path + "/" + endName
     }
 
-    t.TargetFile = t.Links[0].File
+    t.TgtFile = t.Links[0]
+    t.TargetFile = t.TgtFile.RelPath()
     if len(t.Links) > 1 {
         t.Links = t.Links[1:]
-    } else {
-        t.Links = nil
     }
 
     return
 }
 
-func (target *TargetFile) CopyFromDisk(mp string) (err error) {
-    debug("copying file from/to", target.SourceFile, target.TargetFile)
+func (target *TargetFile) CopyFromDisk() (err error) {
+    debugf("copying file from/to <%s>/<%s>", target.SourceFile, target.TargetFile)
     err = target.MakePaths()
     if err != nil {
         err = fmt.Errorf("Failed creating target path: %v", err)
         return
     }
 
+    srcPath := fmt.Sprintf("%s/%s", target.NestRoot, target.SourceFile)
+
     var rawData []byte
-    rawData, err = readData(mp+"/"+target.SourceFile, target.SourceInfo.Size())
+    rawData, err = readData(srcPath, target.SourceInfo.Size())
     if err != nil {
         err = fmt.Errorf("Failed reading source file: %v", err)
         return
