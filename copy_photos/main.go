@@ -50,7 +50,7 @@ func main() {
         }
     }()
 
-    fsRoot, mountedDirs, err := findAndMountDisks(mountPoint)
+    _, mountedDirs, err := findAndMountDisks(mountPoint)
     defer func() {
         if !opts.KeepMounts {
             for _, v := range mountedDirs {
@@ -73,17 +73,20 @@ func main() {
         rc = 1
         return
     }
-    debug("found fsroot:", fsRoot)
     fileQueue := make(map[string]TargetFile)
 
-    err = fs.WalkDir(fsRoot, ".", func(path string, entry fs.DirEntry, err error) error {
-        return findFiles(fileQueue, opts.RootPath, path, entry, err)
-    })
+    for _, mDir := range mountedDirs {
+        fsRoot := os.DirFS(mDir)
+        debug("found fsroot:", fsRoot)
+        err = fs.WalkDir(fsRoot, ".", func(path string, entry fs.DirEntry, err error) error {
+            return findFiles(fileQueue, opts.RootPath, mDir, path, entry, err)
+        })
 
-    if err != nil {
-        rc = 1
-        fmt.Printf("Error traversing filesystem: %v\n", err)
-        return
+        if err != nil {
+            rc = 1
+            fmt.Printf("Error traversing filesystem: %v\n", err)
+            return
+        }
     }
 
     i := 0
@@ -92,7 +95,7 @@ func main() {
         v := fileQueue[k]
         i += 1
         fmt.Println(i, "of", len(fileQueue))
-        err = v.CopyFromDisk(mountPoint)
+        err = v.CopyFromDisk()
         if err != nil {
             fmt.Println(err)
             rc=1
@@ -153,7 +156,8 @@ func getIds() (user, group int, err error) {
 
 func debug(a ...any) {
     if opts.Verbose {
-        fmt.Println(a)
+        fmt.Printf("%s ",time.Now().Format("2006-01-02 15:04:05.000Z07:00"))
+        fmt.Println(a...)
     }
 }
 
