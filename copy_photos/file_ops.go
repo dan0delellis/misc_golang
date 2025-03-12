@@ -46,7 +46,6 @@ func findFiles(queue map[string]TargetFile, rootPath, devDir, thisPath string, d
             return fmt.Errorf("unhandled status for copying %s to %s: %d", thisPath, task.TargetFile, task.Action)
     }
 
-    task.SourceFile = thisPath
     queue[task.TargetFile] = task
     return nil
 }
@@ -157,4 +156,3 @@ func compareByteSlices(a, b []byte) (status bool) {
     status = true
     return
 }
-
