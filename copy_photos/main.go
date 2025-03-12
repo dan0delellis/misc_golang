@@ -44,12 +44,6 @@ func main() {
     debug("user/group ids of target dir:", photosUid, photosGid)
 
     mountPoint := mountPointName()
-    defer func() {
-        if !opts.KeepMounts {
-            debugf("deleting %s", mountPoint)
-            //TODO: unmount only if empty
-        }
-    }()
 
     //TODO: turn this into a struct that can have functions, then you can just do `defer mountedDirs.unmount()` with all this logic hidden away
     mountedDirs, err := findAndMountDisks(mountPoint)
@@ -63,8 +57,23 @@ func main() {
                     rc = 1
                     return
                 }
+                debugf("umonted disk from %v", v)
+                vFS := os.DirFS(v)
+                foundFiles := false
+                fErr := fs.WalkDir(vFS, ".", func(path string, entry fs.DirEntry, fErr error) error {
+                    if entry.Type().IsRegular() {
+                        fErr = fmt.Errorf("found regular file: %s", v, path)
+                        foundFiles = true
+                    }
+                    return fErr
+                })
+                if fErr != nil || foundFiles {
+                    debugf("can't clean up mountpoint %s: %v", v, err)
+                } else {
+                    debugf("no regular files found in %s, cleaning up", v)
+                    os.RemoveAll(v)
+                }
             }
-            debug("umonted disk")
         } else {
             debug("not unmounting disks")
         }
@@ -120,7 +129,7 @@ func main() {
             bitMode = 0664
         }
 
-        return setPermissions(opts.RootPath + "/" + path, photosUid, photosGid, bitMode)
+        return setPermissions(GeneratePath(opts.RootPath, path), photosUid, photosGid, bitMode)
     })
 
     if err != nil {
