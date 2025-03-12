@@ -19,9 +19,6 @@ const (
 // the sortable file will be a hardlink to the archive file.
 // a more flexible struct would have the Sourcefile and info as named fields, and then a list of generic path/name pairs that would all be hardlinks from the initial copy
 type TargetFile struct {
-    NestRoot    string
-
-    SrcFile     FileWithDirPath
     SourceFile  string
     SourceInfo  fs.FileInfo
 
@@ -29,12 +26,8 @@ type TargetFile struct {
     TargetFile  string
     TargetStat  fs.FileInfo
 
-    Links   []FileWithDirPath
+    Targets []FileWithDirPath
     Action  int
-}
-
-func (f *FileWithDirPath) RelPath() string {
-    return f.Path + "/" + f.File
 }
 
 type FileWithDirPath struct {
@@ -45,15 +38,15 @@ type FileWithDirPath struct {
 func (t *TargetFile) Generate(rootPath, devDir, filePath string, f fs.DirEntry, linkDirs []string) ( e error ) {
     debugf("rootpath:%s,sourcefile:%s", rootPath, f.Name())
     if len(linkDirs) < 1 {
-        e = fmt.Errorf("No copy targets specified")
-        return
+        e = fmt.Errorf("impossible code path?")
     }
+    t.SourceFile = devDir + "/" + filePath
     t.SourceInfo, e = f.Info()
     if e != nil {
         return
     }
 
-    t.Links = make([]FileWithDirPath, len(linkDirs))
+    t.Targets = make([]FileWithDirPath, len(linkDirs))
 
     dateDir := t.SourceInfo.ModTime().Local().Format(opts.DirFormat)
     for i, v := range linkDirs {
@@ -61,14 +54,15 @@ func (t *TargetFile) Generate(rootPath, devDir, filePath string, f fs.DirEntry, 
         if opts.FlatPaths {
             endName = strings.ReplaceAll(filePath, "/", ".")
         }
-        t.Links[i].Path = rootPath + "/" +  v + "/" + dateDir
-        t.Links[i].File = t.Links[i].Path + "/" + endName
+        t.Targets[i].Path = rootPath + "/" + v + "/" + dateDir
+        t.Targets[i].File = endName
     }
 
-    t.TgtFile = t.Links[0]
-    t.TargetFile = t.TgtFile.RelPath()
-    if len(t.Links) > 1 {
-        t.Links = t.Links[1:]
+    t.TargetFile = t.Targets[0].Path + "/" + t.Targets[0].File
+    if len(t.Targets) > 1 {
+        t.Targets = t.Targets[1:]
+    } else {
+        t.Targets = nil
     }
 
     return
@@ -82,10 +76,8 @@ func (target *TargetFile) CopyFromDisk() (err error) {
         return
     }
 
-    srcPath := fmt.Sprintf("%s/%s", target.NestRoot, target.SourceFile)
-
     var rawData []byte
-    rawData, err = readData(srcPath, target.SourceInfo.Size())
+    rawData, err = readData(target.SourceFile, target.SourceInfo.Size())
     if err != nil {
         err = fmt.Errorf("Failed reading source file: %v", err)
         return
@@ -141,7 +133,7 @@ func (target *TargetFile) CopyFromDisk() (err error) {
 
 //This should create the dir paths for ArchivePath and SortPath
 func (t *TargetFile) MakePaths() (error) {
-    for _, entry := range t.Links {
+    for _, entry := range t.Targets {
         dirErr := os.MkdirAll(entry.Path, 0775)
         if dirErr != nil {
             return fmt.Errorf("Error creating directory: %s: %v", entry.Path)
