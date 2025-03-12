@@ -40,7 +40,7 @@ func (t *TargetFile) Generate(rootPath, devDir, filePath string, f fs.DirEntry, 
     if len(linkDirs) < 1 {
         e = fmt.Errorf("impossible code path?")
     }
-    t.SourceFile = devDir + "/" + filePath
+    t.SourceFile = GeneratePath(devDir, filePath)
     t.SourceInfo, e = f.Info()
     if e != nil {
         return
@@ -50,20 +50,20 @@ func (t *TargetFile) Generate(rootPath, devDir, filePath string, f fs.DirEntry, 
 
     dateDir := t.SourceInfo.ModTime().Local().Format(opts.DirFormat)
     for i, v := range linkDirs {
+        var dirPath string
+        if opts.KeepPaths {
+            dirPath, _ = strings.CutSuffix(filePath, f.Name())
+        }
+        t.Targets[i].Path = GeneratePath(rootPath, v, dateDir, dirPath)
+
         endName := f.Name()
         if opts.FlatPaths {
             endName = strings.ReplaceAll(filePath, "/", ".")
         }
-        t.Targets[i].Path = rootPath + "/" + v + "/" + dateDir
         t.Targets[i].File = endName
     }
 
-    t.TargetFile = t.Targets[0].Path + "/" + t.Targets[0].File
-    if len(t.Targets) > 1 {
-        t.Targets = t.Targets[1:]
-    } else {
-        t.Targets = nil
-    }
+    t.TargetFile = GeneratePath(t.Targets[0].Path, t.Targets[0].File)
 
     return
 }
@@ -128,6 +128,12 @@ func (target *TargetFile) CopyFromDisk() (err error) {
         return
     }
     debug("set time")
+
+    if len(target.Targets) > 1 {
+        target.Targets = target.Targets[1:]
+    } else {
+        target.Targets = nil
+    }
     return
 }
 
@@ -140,4 +146,13 @@ func (t *TargetFile) MakePaths() (error) {
         }
     }
     return nil
+}
+
+func GeneratePath(s ...string) string {
+    return CleanPath(strings.Join(s, string(os.PathSeparator)))
+}
+func CleanPath(s string) string {
+    s = strings.ReplaceAll(s,"/./", "/")
+    s = strings.ReplaceAll(s,"//", "/")
+    return s
 }
