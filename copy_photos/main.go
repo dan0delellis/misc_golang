@@ -11,6 +11,7 @@ import (
     "github.com/moby/sys/mount"
     "syscall"
     "slices"
+    "encoding/json"
     "maps"
 )
 
@@ -168,4 +169,13 @@ type StatusReport struct {
     TTL time.Duration
     Detail []string
     Status int
+}
+
+func jsonDump( a any ) {
+    b, e := json.MarshalIndent(a,"#","    ")
+    if e != nil {
+        debugf("issue trying to marshal data: %v", e)
+    }
+    debug(string(b))
+
 }
