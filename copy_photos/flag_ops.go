@@ -3,12 +3,13 @@ import (
     flags "github.com/jessevdk/go-flags"
 )
 
-//a A b B c C . D e E . F . G . H i I j J k K l . m M . . o O p P q Q . R s S . . . U . V w W x X y Y z Z
+//a A b B c C . D e E . F . G . H i I j J k . l . m M . . o O p P q Q . R s S . . . U . V w W x X y Y z Z
 type Opts struct {
     DevIDs      []string `short:"d" long:"dev" description:"multiple instances allowed. full device path (ex: '/dev/sdb1') to scan. Overrides fstypes,fslabels options entirely. Will not override nikonfile or nikon flag"`
     RootPath    string   `short:"r" long:"rootdir" description:"root of directory path, relative to CWD, to copy files into." default:"photos"`
     TargetDirs  []string `short:"t" long:"targetdir" description:"multiple instances allowed. path, relative to 'rootdir', to create date-formatted directory names. call multiple times to create hardlink clones of the initial directory" default:"."`
-    FlatPaths   bool     `short:"F" long:"flattenpth" description:"relative to the filesystem root, prepend the full path of the file to its name in the copy target, replacing '/' with '.'"`
+    FlatPaths   bool     `short:"F" long:"flattenpath" description:"prepend relative to the filesystem root path of the file to its name in the copy target, replacing '/' with '.'"`
+    KeepPaths   bool     `short:"K" long:"keeppath" description:"sort files into directories, but keep each file nested in a subdirectory tree matching source filesystem"`
 
     KeepMounts  bool     `long:"keepmounts" description:"don't unmount filesystems on exit or failure"`
     DirFormat   string   `short:"f" long:"dirformat" description:"go-time formatted string for target directory names to move files to" default:"20060102"`
