@@ -26,7 +26,7 @@ func (dev *Dev) Mount(mountPoint, mode string) ( err error ) {
         }
     }
     if opts.NikonFilePath != "" {
-        r, e := readData(mountPoint+"/"+nikonFile,512)
+        r, e := readData(GeneratePath(mountPoint,nikonFile),512)
         if e != nil {
             err = fmt.Errorf("Called with --nikon or --nikonfile but %s not found in root of %s", nikonFile, dev.DevID)
             return
