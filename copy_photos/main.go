@@ -1,6 +1,4 @@
 package main
-//TODO: search for conflicts within the presented data
-//TODO: search for duplicates mode: calculate the md5 of each file and store it in a hashmap, set the target file's mtime to the OLDEST copy found
 //TODO: report to redis for status readout
 //TODO: image similarity comparison
 import (
