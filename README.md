@@ -1,2 +1,3 @@
-# rpi_golang
-golang programs to be executed on my raspberry pi computers 
+# misc golang
+miscillaneous programs to run in my home cluster and do stuff
+i follow basically none of the best practices
