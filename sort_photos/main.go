@@ -15,7 +15,7 @@ import (
 
 const (
     //sortDir = "/mnt/media/photos/sort/20250120_pleasantonridge/bird_branch_solo"
-    sortDir = "/mnt/media/photos/sort/20240914"
+    sortDir = "/mnt/media/photos/sort/20250111/jpg"
     RFC3339Micro = "2006-01-02T15:04:05.999999"
 )
 
@@ -51,7 +51,7 @@ func main() {
             msg = fmt.Errorf("failed getting file metadata for %s: %w", v.Name(), infoErr)
             return
         }
-        if info.Size() < 1000000 { continue }
+        if info.Size() < 100000 { continue }
         temp.Name = info.Name()
 
         //k := info.ModTime().Format(RFC3339Micro) + " " +  info.Name()
@@ -63,8 +63,8 @@ func main() {
     keys := slices.Sorted(maps.Keys(filesMap))
 
     var prev FileHashes
-    for i, _ := range keys {
-        k := filesMap[keys[i]]
+    for i, file := range keys {
+        k := filesMap[file]
 
         k.ImgMat = gocv.IMRead(sortDir + "/" + k.Name, gocv.IMReadColor)
         if k.ImgMat.Empty() {
