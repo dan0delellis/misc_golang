@@ -9,12 +9,13 @@ import (
     "slices"
     "maps"
 
-    _ "gocv.io/x/gocv"
-    _ "gocv.io/x/gocv/contrib"
+    "gocv.io/x/gocv"
+    "gocv.io/x/gocv/contrib"
 )
 
 const (
-    sortDir = "/mnt/media/photos/sort/20250111"
+    //sortDir = "/mnt/media/photos/sort/20250120_pleasantonridge/bird_branch_solo"
+    sortDir = "/mnt/media/photos/sort/20240914"
     RFC3339Micro = "2006-01-02T15:04:05.999999"
 )
 
@@ -39,8 +40,10 @@ func main() {
         return
     }
 
-    filesMap := make(map[string]string)
+    filesMap := make(map[string]FileHashes)
     for _, v := range dirList {
+        var temp FileHashes
+
         if v.IsDir() { continue }
 
         info, infoErr := v.Info()
@@ -49,15 +52,53 @@ func main() {
             return
         }
         if info.Size() < 1000000 { continue }
+        temp.Name = info.Name()
 
-        k := info.ModTime().Format(RFC3339Micro) +"/"+ info.Name()
-        filesMap[k] = info.Name()
+        //k := info.ModTime().Format(RFC3339Micro) + " " +  info.Name()
+        k := info.Name()
+        temp.HashList = hashList()
+        filesMap[k] = temp
     }
 
     keys := slices.Sorted(maps.Keys(filesMap))
 
-    for _, k := range keys {
-        fmt.Println(k)
-    }
+    var prev FileHashes
+    for i, _ := range keys {
+        k := filesMap[keys[i]]
 
+        k.ImgMat = gocv.IMRead(sortDir + "/" + k.Name, gocv.IMReadColor)
+        if k.ImgMat.Empty() {
+            msg = fmt.Errorf("failed reading %s", k.Name)
+            return
+        }
+        defer k.ImgMat.Close()
+
+        fmt.Printf("\n%s: ", k.Name)
+        for j, h := range k.HashList {
+            res := gocv.NewMat()
+            h.Compute(k.ImgMat, &res)
+            if res.Empty() {
+                msg = fmt.Errorf("failed computing hash for file: %s", k.Name)
+                return
+            }
+            if i > 0 {
+                sim := h.Compare(res, prev.Results[j])
+                fmt.Printf("%T: %g, ", h, sim)
+            }
+            k.Results = append(k.Results, res)
+        }
+        prev = k
+    }
+}
+
+func hashList() ([]contrib.ImgHashBase) {
+    return []contrib.ImgHashBase{contrib.AverageHash{}, contrib.PHash{}, contrib.ColorMomentHash{} }
+
+}
+
+type FileHashes struct {
+    Name    string
+    ImgMat   gocv.Mat
+    HashList []contrib.ImgHashBase
+    Results  []gocv.Mat
 }
