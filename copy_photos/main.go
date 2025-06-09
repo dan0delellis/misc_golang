@@ -1,4 +1,6 @@
 package main
+//TODO: fix '0 of n' message
+//TODO: support multiple root dirs?
 //TODO: report to redis for status readout
 //TODO: image similarity comparison
 import (
