@@ -142,7 +142,7 @@ func (t *TargetFile) MakePaths() (error) {
     for _, entry := range t.Targets {
         dirErr := os.MkdirAll(entry.Path, 0775)
         if dirErr != nil {
-            return fmt.Errorf("Error creating directory: %s: %v", entry.Path)
+            return fmt.Errorf("Error creating directory: %s: %v", entry.Path, dirErr)
         }
     }
     return nil
