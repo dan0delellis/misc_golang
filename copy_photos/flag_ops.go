@@ -10,6 +10,7 @@ type Opts struct {
     TargetDirs  []string `short:"t" long:"targetdir" description:"multiple instances allowed. path, relative to 'rootdir', to create date-formatted directory names. call multiple times to create hardlink clones of the initial directory" default:"."`
     FlatPaths   bool     `short:"F" long:"flattenpath" description:"prepend relative to the filesystem root path of the file to its name in the copy target, replacing '/' with '.'"`
     KeepPaths   bool     `short:"K" long:"keeppath" description:"sort files into directories, but keep each file nested in a subdirectory tree matching source filesystem"`
+    SkipConflicts bool   `short:"S" long:"skip-conflicts" description:"if a conflict is detected, skip to the next file instead of dying"`
 
     KeepMounts  bool     `long:"keepmounts" description:"don't unmount filesystems on exit or failure"`
     DirFormat   string   `short:"f" long:"dirformat" description:"go-time formatted string for target directory names to move files to" default:"20060102"`
