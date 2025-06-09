@@ -40,6 +40,10 @@ func findFiles(queue map[string]TargetFile, rootPath, devDir, thisPath string, d
             //continue
         case Conflict:
             debug("target does not appear to be an incomplete copy of "+thisPath)
+            if opts.SkipConflicts {
+                debug("conflict detected %s <> %s, but skipping", task.TargetFile, thisPath)
+                return nil
+            }
             return fmt.Errorf("conflict detected: %s has different contents than %s",task.TargetFile, thisPath)
         default:
             debug("i have no idea what do with:",thisPath, task.TargetFile)
