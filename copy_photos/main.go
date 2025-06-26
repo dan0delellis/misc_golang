@@ -103,7 +103,7 @@ func main() {
     debug(fmt.Sprintf("found %d files", len(fileQueue)))
     for i, k := range slices.Sorted(maps.Keys(fileQueue)) {
         v := fileQueue[k]
-        fmt.Println(i, "of", len(fileQueue))
+        debugf("%d of %d", i+1, len(fileQueue))
         err = v.CopyFromDisk()
         if err != nil {
             fmt.Println(err)
