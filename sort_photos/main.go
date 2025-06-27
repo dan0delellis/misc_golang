@@ -24,7 +24,7 @@ const (
 	radVarMissStdDev = 0.081
 	momentMissMean   = 0.376
 	momentMissStdDev = 0.173
-	omissZScore       = -1.0
+	omissZScore      = -1.0
 )
 
 func validFile(f os.DirEntry) bool {

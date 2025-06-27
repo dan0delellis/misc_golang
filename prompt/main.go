@@ -1,62 +1,62 @@
 package main
+
 import (
-    "fmt"
-    "strings"
-    "crypto/md5"
-    "os"
+	"crypto/md5"
+	"fmt"
+	"os"
+	"strings"
 )
 
 const clear = "\\[\\033[00m\\]"
 
 func main() {
-    prompt := getPrompt()
-    fmt.Print("PS1=" + `"` + prompt + `"`)
+	prompt := getPrompt()
+	fmt.Print("PS1=" + `"` + prompt + `"`)
 }
 
 func getPrompt() string {
-    hostname, _ := os.Hostname()
-    hash := md5.Sum([]byte(hostname))
+	hostname, _ := os.Hostname()
+	hash := md5.Sum([]byte(hostname))
 
-    offset := 4
+	offset := 4
 
-    colorTime := hash[offset+0]
-    colorUser := hash[offset+1]
-    colorHost := hash[offset+2]
-    colorPwd := hash[offset+3]
+	colorTime := hash[offset+0]
+	colorUser := hash[offset+1]
+	colorHost := hash[offset+2]
+	colorPwd := hash[offset+3]
 
-    parts := []string {
-        //time
-        "(" + foreground(colorTime,"t") + ") ",
+	parts := []string{
+		//time
+		"(" + foreground(colorTime, "t") + ") ",
 
-        //username
-        foreground(colorUser,"u"),
+		//username
+		foreground(colorUser, "u"),
 
-        // @
-        "@",
+		// @
+		"@",
 
-        //hostname
-        foreground(colorHost,"h"),
+		//hostname
+		foreground(colorHost, "h"),
 
-        // :
-        ": ",
+		// :
+		": ",
 
-        //working dir
-        foreground(colorPwd,"w"),
+		//working dir
+		foreground(colorPwd, "w"),
 
-        //newline
-        "\\n",
+		//newline
+		"\\n",
 
-        //prompt char
-        esc("$ "),
-
-    }
-    return strings.Join(parts, "")
+		//prompt char
+		esc("$ "),
+	}
+	return strings.Join(parts, "")
 }
 
 func foreground(i uint8, a string) string {
-    return fmt.Sprintf("\\[\\033[38;05;%dm\\]%s%s", i, esc(a), clear)
+	return fmt.Sprintf("\\[\\033[38;05;%dm\\]%s%s", i, esc(a), clear)
 }
 
 func esc(a string) string {
-    return fmt.Sprintf("\\%s", a)
+	return fmt.Sprintf("\\%s", a)
 }
