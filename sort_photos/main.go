@@ -15,6 +15,11 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
+//TODO: create sort target dir
+// if a new directory is needed, create a directory named after the first file in the set
+// hardlink the file into the target directory
+
+//TODO: flags
 const (
 	//sortDir = "/mnt/media/photos/sort/20250120_pleasantonridge/bird_branch_solo"
 	sortDir = "/mnt/media/photos/.archive/f"
@@ -124,7 +129,6 @@ func main() {
 			msg = fmt.Errorf("failed running exiftool: %w", err)
 			return
 		}
-		fmt.Printf("%s jpg data is %d bytes\n", k.Name, len(jpg))
 		k.ImgMat, err = gocv.IMDecode(jpg, gocv.IMReadColor)
 		if err != nil {
 			msg = fmt.Errorf("failed decoding image: %w", err)
