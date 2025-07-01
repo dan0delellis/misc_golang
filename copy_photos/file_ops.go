@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"syscall"
 )
 
 // operates on a single dir entry, this function is specific to source files on the mounted SD card
@@ -84,9 +85,9 @@ func prepareCopy(rootPath, devDir, thisPath string, d fs.DirEntry) (target Targe
 	return
 }
 
-func readData(src string, expectedSize int64) (raw []byte, err error) {
+func readData(src string, expectedSize int64) (data *[]byte, err error) {
 	debugf("reading file <%s>", src)
-	raw, err = os.ReadFile(src)
+	raw, err := os.ReadFile(src)
 	if err != nil {
 		err = fmt.Errorf("Error trying to read file contents of %s: %v", src, err)
 		return
@@ -97,11 +98,13 @@ func readData(src string, expectedSize int64) (raw []byte, err error) {
 		return
 	}
 	debug("raw data is of correct expected size:", readSize)
+
+	data = &raw
 	return
 }
 
-func writeData(data []byte, target string) (err error) {
-	err = os.WriteFile(target, data, 0664)
+func writeData(data *[]byte, target string) (err error) {
+	err = os.WriteFile(target, *data, 0664)
 	if err != nil {
 		err = fmt.Errorf("Error trying to write %s: %v", target, err)
 
@@ -132,29 +135,58 @@ func compareSrcTgt(src, tgt fs.FileInfo) int {
 	return Conflict
 }
 
-func setPermissions(path string, uid, gid int, bitMode fs.FileMode) error {
-	chOwnErr := os.Chown(path, uid, gid)
-	if chOwnErr != nil {
-		return fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d)", path, uid, gid)
+func getFileStat(path string) (uid, gid int, mode fs.FileMode, err error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return
 	}
-	debug("changed owner of ", path)
 
-	chmodErr := os.Chmod(path, bitMode)
-	if chmodErr != nil {
-		return fmt.Errorf("Error setting permissions on %s to %v: %v", path, bitMode, chmodErr)
+	sys := stat.Sys().(*syscall.Stat_t)
+	uid = int(sys.Uid)
+	gid = int(sys.Gid)
+	mode = fs.FileMode(sys.Mode)
+	return
+}
+
+func getOwnership(path string) (uid, gid int, err error) {
+	uid, gid, _, err = getFileStat(path)
+
+	return
+}
+
+func setPermissions(path string, uid, gid int, bitMode fs.FileMode) error {
+	u, g, m, err := getFileStat(path)
+	if err != nil {
+		return fmt.Errorf("Failed checking ownership of %s: [%w]", path, err)
 	}
-	debug("set permissions on ", path)
+	if ( uid != u || gid != g) {
+		chownErr := os.Chown(path, uid, gid)
+		if chownErr != nil {
+			return fmt.Errorf("error trying to change owner of copied file (%s) to match dir owner:group (%d:%d) [%w]", path, uid, gid, chownErr)
+		}
+
+		debug("changed owner of ", path)
+	}
+
+	if m != bitMode {
+		chmodErr := os.Chmod(path, bitMode)
+		if chmodErr != nil {
+			return fmt.Errorf("Error setting permissions on %s to %v: %w", path, bitMode, chmodErr)
+		}
+		debug("set permissions on ", path)
+	}
 
 	return nil
 }
 
-func compareByteSlices(a, b []byte) (status bool) {
-	if len(a) != len(b) {
-		return
+func compareByteSlices(short, full *[]byte) (status bool) {
+	m := len(*full)
+	if len(*short) < m {
+		debugf("file on disk (%d) is shorter than souce file (%d)", len(*short), len(*full))
 	}
-	for k, v := range a {
-		if v != b[k] {
-			debug("differing value found at byte ", k)
+	for i := 0; i < m; i++{
+		if (*short)[i] != (*full)[i] {
+			debug("differing value found at byte ", i)
 			return
 		}
 	}
