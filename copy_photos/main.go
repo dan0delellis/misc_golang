@@ -1,6 +1,5 @@
 package main
 
-//TODO: fix '0 of n' message
 //TODO: support multiple root dirs?
 //TODO: report to redis for status readout
 //TODO: image similarity comparison
@@ -12,7 +11,6 @@ import (
 	"maps"
 	"os"
 	"slices"
-	"syscall"
 	"time"
 )
 
@@ -148,19 +146,14 @@ func getIds() (user, group int, err error) {
 		return
 	}
 	path := opts.RootPath
-	d, err := os.Open(path)
-	if err != nil {
-		return
-	}
-	stat, err := d.Stat()
-	if err != nil {
-		return
-	}
-	fileSys := stat.Sys()
 
-	a := fileSys.(*syscall.Stat_t)
-	user = max(opts.UserID, int(a.Uid))
-	group = max(opts.GroupID, int(a.Gid))
+	u, g, err := getOwnership(path)
+	if err != nil {
+		return
+	}
+
+	user = u
+	group = g
 	return
 }
 
