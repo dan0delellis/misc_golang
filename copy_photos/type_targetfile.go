@@ -22,6 +22,8 @@ type TargetFile struct {
 	SourceFile string
 	SourceInfo fs.FileInfo
 
+	Data *[]byte
+
 	TgtFile    FileWithDirPath
 	TargetFile string
 	TargetStat fs.FileInfo
@@ -68,6 +70,10 @@ func (t *TargetFile) Generate(rootPath, devDir, filePath string, f fs.DirEntry, 
 	return
 }
 
+func (target *TargetFile) CompareSrcDest() (b bool,e error) {
+	return
+}
+
 func (target *TargetFile) CopyFromDisk() (err error) {
 	debugf("copying file from/to <%s>/<%s>", target.SourceFile, target.TargetFile)
 	err = target.MakePaths()
@@ -76,29 +82,24 @@ func (target *TargetFile) CopyFromDisk() (err error) {
 		return
 	}
 
-	var rawData []byte
-	rawData, err = readData(target.SourceFile, target.SourceInfo.Size())
+	target.Data, err = readData(target.SourceFile, target.SourceInfo.Size())
 	if err != nil {
 		err = fmt.Errorf("Failed reading source file: %v", err)
 		return
 	}
 
-	debug("correct number of bytes read:", target.SourceInfo.Size())
-
 	if target.Action == NeedsVerify {
-		var extantData []byte
+		var extantData *[]byte
 
-		debug(fmt.Sprintf("size type is %T", target.TargetStat.Size()))
 		debug("need to compare target file contents")
 		extantData, err = readData(target.TargetFile, target.TargetStat.Size())
-		debug("havent checked error yet")
 		if err != nil {
 			err = fmt.Errorf("failed verifying target file: %v", err)
 			return
 		}
 		debug("read extant data for target,size:", target.SourceInfo.Size())
 
-		if compareByteSlices(extantData, rawData[:len(extantData)]) {
+		if compareByteSlices(extantData, target.Data) {
 			debug("tgt is an incomplete copy of src", target.TargetFile, target.SourceFile)
 			//target file is bytewise identical to source, but incomplete
 			target.Action = NeedsCopy
@@ -115,7 +116,7 @@ func (target *TargetFile) CopyFromDisk() (err error) {
 		err = fmt.Errorf("file %s somehow got to an uncreachable code path while processing copy tasks", target.SourceFile)
 		return
 	}
-	err = writeData(rawData, target.TargetFile)
+	err = writeData(target.Data, target.TargetFile)
 	if err != nil {
 		return
 	}

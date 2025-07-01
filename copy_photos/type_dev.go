@@ -32,7 +32,8 @@ func (dev *Dev) Mount(mountPoint, mode string) (err error) {
 			return
 		}
 
-		if !compareByteSlices(r, make([]byte, 512)) {
+		empty := make([]byte,512)
+		if !compareByteSlices(r, &empty) {
 			err = fmt.Errorf("called with --nikon or --nikonfile but %s at root of %s is not a 512-byte file of 0s", nikonFile, dev.DevID)
 			return
 		}
