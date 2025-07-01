@@ -1,6 +1,6 @@
 module copy_photos
 
-go 1.23.3
+go 1.24.0
 
 require (
 	github.com/jessevdk/go-flags v1.6.1
