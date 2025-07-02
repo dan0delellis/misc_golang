@@ -44,7 +44,7 @@ func main() {
 		err = fmt.Errorf("Error getting uid/gid of target root dir: %w", err)
 		return
 	}
-	debug("user/group ids of target dir:", photosUid, photosGid)
+	debugf("user/group ids of target dir: %d, %d", photosUid, photosGid)
 
 	mountPoint := mountPointName()
 
@@ -64,7 +64,7 @@ func main() {
 				foundFiles := false
 				fErr := fs.WalkDir(vFS, ".", func(path string, entry fs.DirEntry, fErr error) error {
 					if entry.Type().IsRegular() {
-						fErr = fmt.Errorf("found regular file: %s", v, path)
+						fErr = fmt.Errorf("found regular file: %s/%s", v, path)
 						foundFiles = true
 					}
 					return fErr
