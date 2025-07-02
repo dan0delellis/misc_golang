@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"time"
+	"self_utilities/progress_bar"
 )
 
 var opts Opts
@@ -25,19 +26,21 @@ func main() {
 	var err error
 
 	defer func() {
+		if err != nil {
+			fmt.Println(err)
+			rc = 1
+		}
 		os.Exit(rc)
 	}()
 	opts, err = parseFlags()
 	if err != nil {
-		rc = 1
 		return
 	}
 	var photosUid, photosGid int
 
 	photosUid, photosGid, err = getIds()
 	if err != nil {
-		fmt.Printf("Error getting uid/gid of target root dir: %v", err)
-		rc = 1
+		err = fmt.Errorf("Error getting uid/gid of target root dir: %w", err)
 		return
 	}
 	debug("user/group ids of target dir:", photosUid, photosGid)
@@ -52,8 +55,7 @@ func main() {
 				debugf("unmounting %s", v)
 				err = mount.Unmount(v)
 				if err != nil {
-					fmt.Printf("Error unmounting filesystem: %v\n", err)
-					rc = 1
+					err = fmt.Errorf("Error unmounting filesystem: %w", err)
 					return
 				}
 				debugf("umonted disk from %v", v)
@@ -79,8 +81,7 @@ func main() {
 	}()
 
 	if err != nil {
-		fmt.Printf("Error finding or mounting an applicable block device: %v\n", err)
-		rc = 1
+		err = fmt.Errorf("Error finding or mounting an applicable block device: %w", err)
 		return
 	}
 	fileQueue := make(map[string]TargetFile)
@@ -93,10 +94,15 @@ func main() {
 		})
 
 		if err != nil {
-			rc = 1
-			fmt.Printf("Error traversing filesystem: %v\n", err)
+			err = fmt.Errorf("Error traversing filesystem: %w", err)
 			return
 		}
+	}
+
+	bar, err := progress_bar.NewProgress(len(fileQueue), 20)
+	if err != nil {
+		debugf("Failed to initialize progress bar: %v", err)
+		err = nil
 	}
 
 	debug(fmt.Sprintf("found %d files", len(fileQueue)))
@@ -105,10 +111,9 @@ func main() {
 		debugf("%d of %d", i+1, len(fileQueue))
 		err = v.CopyFromDisk()
 		if err != nil {
-			fmt.Println(err)
-			rc = 1
 			return
 		}
+		bar.Draw("Copying files ", v.SourceInfo.Name(), i+1)
 	}
 
 	debug("forcing owner/perms")
@@ -116,7 +121,7 @@ func main() {
 
 	err = fs.WalkDir(photoDirRoot, ".", func(path string, d fs.DirEntry, e error) error {
 		if e != nil {
-			return fmt.Errorf("encountered error setting permissions: %v", e)
+			return fmt.Errorf("encountered error setting permissions: %w", e)
 		}
 		if !(d.Type().IsRegular() || d.IsDir()) {
 			return nil
@@ -128,12 +133,12 @@ func main() {
 			bitMode = 0664
 		}
 
+		fmt.Printf("Forcing permissions on %s \r", path)
 		return setPermissions(GeneratePath(opts.RootPath, path), photosUid, photosGid, bitMode)
 	})
 
 	if err != nil {
-		fmt.Printf("Error forcing owner/perms of content: %v\n", err)
-		rc = 1
+		err = fmt.Errorf("Error forcing owner/perms of content: %w", err)
 		return
 	}
 	debug("done")
