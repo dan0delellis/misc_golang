@@ -4,14 +4,15 @@ package main
 //TODO: report to redis for status readout
 //TODO: image similarity comparison
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/moby/sys/mount"
-	"io/fs"
-	"maps"
 	"os"
-	"slices"
+	"fmt"
+	"maps"
 	"time"
+	"io/fs"
+	"slices"
+	"encoding/json"
+
+	"github.com/moby/sys/mount"
 	"self_utilities/progress_bar"
 )
 

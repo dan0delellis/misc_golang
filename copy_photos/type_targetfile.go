@@ -23,6 +23,7 @@ type TargetFile struct {
 	SourceInfo fs.FileInfo
 
 	Data *[]byte
+	DataBuff	*bytes.Buffer
 
 	TgtFile    FileWithDirPath
 	TargetFile string
@@ -152,6 +153,7 @@ func (t *TargetFile) MakePaths() error {
 func GeneratePath(s ...string) string {
 	return CleanPath(strings.Join(s, string(os.PathSeparator)))
 }
+
 func CleanPath(s string) string {
 	s = strings.ReplaceAll(s, "/./", "/")
 	s = strings.ReplaceAll(s, "//", "/")
